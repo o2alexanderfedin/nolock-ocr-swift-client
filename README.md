@@ -39,14 +39,17 @@ NolockOCRClientAPI.basePath = "https://nolock-ocr-services-qbhx5.ondigitalocean.
 // Using async/await
 Task {
     do {
-        let imageData = Data() // Your check image data
-        let response = try await OCROperationsAPI.processCheckImage(body: imageData)
+        // Note: The API expects a URL to a local image file
+        let imageURL = URL(fileURLWithPath: "/path/to/check.jpg")
+        let response = try await OCROperationsAPI.processCheckOcr(body: imageURL)
         
-        if let check = response.body {
+        if let check = response.modelData {
             print("Account Number: \(check.accountNumber ?? "")")
             print("Routing Number: \(check.routingNumber ?? "")")
             print("Check Number: \(check.checkNumber ?? "")")
             print("Amount: \(check.amount ?? 0)")
+            print("Date: \(check.date ?? "")")
+            print("Payee: \(check.payeeName ?? "")")
         }
     } catch {
         print("Error processing check: \(error)")
@@ -60,10 +63,11 @@ Task {
 // Using async/await
 Task {
     do {
-        let imageData = Data() // Your receipt image data
-        let response = try await OCROperationsAPI.processReceiptImage(body: imageData)
+        // Note: The API expects a URL to a local image file
+        let imageURL = URL(fileURLWithPath: "/path/to/receipt.jpg")
+        let response = try await OCROperationsAPI.processReceiptOcr(body: imageURL)
         
-        if let receipt = response.body {
+        if let receipt = response.modelData {
             print("Merchant: \(receipt.merchantInfo?.name ?? "")")
             print("Total: \(receipt.totals?.total ?? 0)")
             print("Date: \(receipt.transactionDate ?? "")")
@@ -79,18 +83,27 @@ Task {
 }
 ```
 
-### Using Completion Handlers
+### Alternative: Using Data Instead of URL
+
+If you have image data in memory, you can save it to a temporary file first:
 
 ```swift
-// Process check with completion handler
-OCROperationsAPI.processCheckImage(body: imageData) { result in
-    switch result {
-    case .success(let response):
-        if let check = response.body {
-            // Handle check data
-        }
-    case .failure(let error):
-        print("Error: \(error)")
+func processImageData(_ imageData: Data, isReceipt: Bool) async throws {
+    // Save data to temporary file
+    let tempURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathExtension("jpg")
+    
+    try imageData.write(to: tempURL)
+    defer { try? FileManager.default.removeItem(at: tempURL) }
+    
+    // Process the image
+    if isReceipt {
+        let response = try await OCROperationsAPI.processReceiptOcr(body: tempURL)
+        // Handle receipt response...
+    } else {
+        let response = try await OCROperationsAPI.processCheckOcr(body: tempURL)
+        // Handle check response...
     }
 }
 ```
@@ -110,8 +123,8 @@ Task {
 
 ## API Endpoints
 
-- `POST /api/ocr/check` - Process check image
-- `POST /api/ocr/receipt` - Process receipt image
+- `POST /ocr/checks` - Process check image
+- `POST /ocr/receipts` - Process receipt image
 - `GET /health` - Health check endpoint
 
 ## Models

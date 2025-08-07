@@ -12,11 +12,11 @@ class NolockOCRExample {
     
     // MARK: - Check Processing
     
-    func processCheck(imageData: Data) async throws -> Check? {
+    func processCheck(imageURL: URL) async throws -> Check? {
         do {
-            let response = try await OCROperationsAPI.processCheckImage(body: imageData)
+            let response = try await OCROperationsAPI.processCheckOcr(body: imageURL)
             
-            if let check = response.body {
+            if let check = response.modelData {
                 print("✅ Check processed successfully")
                 print("Account Number: \(check.accountNumber ?? "N/A")")
                 print("Routing Number: \(check.routingNumber ?? "N/A")")
@@ -35,13 +35,27 @@ class NolockOCRExample {
         }
     }
     
+    // MARK: - Check Processing with Data
+    
+    func processCheckData(imageData: Data) async throws -> Check? {
+        // Save data to temporary file
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("jpg")
+        
+        try imageData.write(to: tempURL)
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+        
+        return try await processCheck(imageURL: tempURL)
+    }
+    
     // MARK: - Receipt Processing
     
-    func processReceipt(imageData: Data) async throws -> Receipt? {
+    func processReceipt(imageURL: URL) async throws -> Receipt? {
         do {
-            let response = try await OCROperationsAPI.processReceiptImage(body: imageData)
+            let response = try await OCROperationsAPI.processReceiptOcr(body: imageURL)
             
-            if let receipt = response.body {
+            if let receipt = response.modelData {
                 print("✅ Receipt processed successfully")
                 
                 // Merchant info
@@ -77,6 +91,20 @@ class NolockOCRExample {
         }
     }
     
+    // MARK: - Receipt Processing with Data
+    
+    func processReceiptData(imageData: Data) async throws -> Receipt? {
+        // Save data to temporary file
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("jpg")
+        
+        try imageData.write(to: tempURL)
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+        
+        return try await processReceipt(imageURL: tempURL)
+    }
+    
     // MARK: - Health Check
     
     func checkHealth() async -> Bool {
@@ -104,14 +132,15 @@ func exampleUsage() {
             return
         }
         
-        // Process a check image
-        if let checkImageData = loadImageData(named: "check.jpg") {
-            _ = try? await client.processCheck(imageData: checkImageData)
+        // Process a check image from file
+        let checkURL = URL(fileURLWithPath: "/path/to/check.jpg")
+        if FileManager.default.fileExists(atPath: checkURL.path) {
+            _ = try? await client.processCheck(imageURL: checkURL)
         }
         
-        // Process a receipt image
+        // Process a receipt image from data
         if let receiptImageData = loadImageData(named: "receipt.jpg") {
-            _ = try? await client.processReceipt(imageData: receiptImageData)
+            _ = try? await client.processReceiptData(imageData: receiptImageData)
         }
     }
 }
