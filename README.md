@@ -4,7 +4,7 @@ Swift client library for Nolock OCR Services API, providing check and receipt OC
 
 ## 🔗 Related Repositories
 
-- **Backend Service**: https://github.com/o2alexanderfedin/nolock-social-ocr-services
+- **Backend Service**: https://github.com/nolock-social/ocr-backend
 - **Live API**: https://nolock-ocr-services-qbhx5.ondigitalocean.app
 - **API Documentation**: https://nolock-ocr-services-qbhx5.ondigitalocean.app/swagger
 
@@ -155,7 +155,7 @@ Task {
 ## 🔧 Backend Development
 
 To run the backend service locally or contribute to it:
-- Repository: https://github.com/o2alexanderfedin/nolock-social-ocr-services
+- Repository: https://github.com/nolock-social/ocr-backend
 - Technologies: .NET 9.0, Mistral AI, Cloudflare AI
 - Deployment: DigitalOcean App Platform
 
@@ -166,5 +166,5 @@ This client library is auto-generated from the OpenAPI specification.
 ## Support
 
 - **Client Library Issues**: https://github.com/o2alexanderfedin/nolock-ocr-swift-client/issues
-- **API/Backend Issues**: https://github.com/o2alexanderfedin/nolock-social-ocr-services/issues
+- **API/Backend Issues**: https://github.com/nolock-social/ocr-backend/issues
 - **API Documentation**: https://nolock-ocr-services-qbhx5.ondigitalocean.app/swagger
