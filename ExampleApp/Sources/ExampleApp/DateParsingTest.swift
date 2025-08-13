@@ -120,7 +120,70 @@ func testDateParsingIssue() async {
     }
 }
 
+// Test receipt date parsing
+func testReceiptDateParsing() async {
+    print("\n🧾 Testing Receipt Date Parsing")
+    print("================================\n")
+    
+    // Use the same test image
+    let testImagePath = "test-check.jpg"
+    let testImageURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent(testImagePath)
+    
+    if FileManager.default.fileExists(atPath: testImageURL.path) {
+        do {
+            print("📤 Sending image to Receipt OCR service...")
+            let response = try await OCROperationsAPI.processReceiptOcr(body: testImageURL)
+            
+            print("✅ Receipt request succeeded!")
+            print("   Processing time: \(response.processingTime ?? "N/A")")
+            
+            if let receipt = response.modelData {
+                print("\n📋 Receipt Data:")
+                
+                // This is where date parsing would occur for receipts
+                if let timestamp = receipt.timestamp {
+                    let formatter = DateFormatter()
+                    formatter.dateStyle = .medium
+                    formatter.timeStyle = .short
+                    print("   Timestamp: \(formatter.string(from: timestamp))")
+                } else {
+                    print("   Timestamp: N/A")
+                }
+                
+                if let merchant = receipt.merchant {
+                    print("   Merchant: \(merchant.name ?? "N/A")")
+                }
+                
+                if let totals = receipt.totals {
+                    print("   Total: $\(totals.total ?? 0)")
+                }
+                
+                print("   Confidence: \(receipt.confidence ?? 0)")
+                print("   Valid input: \(receipt.isValidInput ?? false)")
+            }
+            
+        } catch let error as DecodingError {
+            print("❌ DECODING ERROR in Receipt!")
+            switch error {
+            case .dataCorrupted(let context):
+                print("   Coding path: \(context.codingPath.map { $0.stringValue }.joined(separator: " -> "))")
+                print("   Description: \(context.debugDescription)")
+                
+                if context.codingPath.contains(where: { $0.stringValue == "timestamp" }) {
+                    print("\n🎯 Date parsing error in Receipt timestamp field!")
+                }
+            default:
+                print("   Error: \(error)")
+            }
+        } catch {
+            print("❌ Receipt OCR error: \(error)")
+        }
+    }
+}
+
 // Run this test directly
 public func runDateParsingTest() async {
     await testDateParsingIssue()
+    await testReceiptDateParsing()
 }
