@@ -8,13 +8,22 @@
 import Foundation
 
 // https://stackoverflow.com/a/50281094/976628
-public class OpenISO8601DateFormatter: DateFormatter {
+public class OpenISO8601DateFormatter: DateFormatter, @unchecked Sendable {
     static let withoutSeconds: DateFormatter = {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .iso8601)
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
+        return formatter
+    }()
+    
+    static let withoutTimezone: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .iso8601)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
         return formatter
     }()
 
@@ -46,6 +55,8 @@ public class OpenISO8601DateFormatter: DateFormatter {
 
     override public func date(from string: String) -> Date? {
         if let result = super.date(from: string) {
+            return result
+        } else if let result = OpenISO8601DateFormatter.withoutTimezone.date(from: string) {
             return result
         } else if let result = OpenISO8601DateFormatter.withoutSeconds.date(from: string) {
             return result
