@@ -46,8 +46,8 @@ class IntegrationTests {
     static func testCheckOCR() async {
         print("\n📄 Testing Check OCR...")
         
-        // Use the HEIC image and convert to JPEG
-        let heicImagePath = "/Users/alexanderfedin/Projects/nolock.social/Nolock.social.apps/nolock-ocr-swift-client/ExampleApp/IMG_4171.heic"
+        // Use embedded resource or fallback to filesystem
+        let heicImagePath = TestResources.getTestImagePath()
         
         guard FileManager.default.fileExists(atPath: heicImagePath) else {
             print("  ⚠️ HEIC image not found at: \(heicImagePath)")
@@ -125,8 +125,8 @@ class IntegrationTests {
     static func testReceiptOCR() async {
         print("\n🧾 Testing Receipt OCR...")
         
-        // Use the same HEIC image as for checks
-        let heicImagePath = "/Users/alexanderfedin/Projects/nolock.social/Nolock.social.apps/nolock-ocr-swift-client/ExampleApp/IMG_4171.heic"
+        // Use embedded resource or fallback to filesystem
+        let heicImagePath = TestResources.getTestImagePath()
         
         guard FileManager.default.fileExists(atPath: heicImagePath) else {
             print("  ⚠️ HEIC image not found at: \(heicImagePath)")
@@ -204,32 +204,11 @@ class IntegrationTests {
     static func convertHEICToJPEG(heicPath: String, quality: Double) throws -> URL {
         let heicURL = URL(fileURLWithPath: heicPath)
         
-        // Read HEIC data
-        let heicData = try Data(contentsOf: heicURL)
-        
-        // Create CGImageSource from HEIC data
-        guard let imageSource = CGImageSourceCreateWithData(heicData as CFData, nil),
-              let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
-            throw NSError(domain: "ImageConversion", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create image from HEIC data"])
-        }
-        
-        // Create temporary JPEG file URL
-        let jpegURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("converted-\(UUID().uuidString)")
-            .appendingPathExtension("jpg")
-        
-        // Use strategy pattern for JPEG creation
-        do {
-            try ImageConversionStrategyFactory.shared.createJPEGDestination(
-                at: jpegURL,
-                image: cgImage,
-                quality: quality
-            )
-        } catch {
-            throw NSError(domain: "ImageConversion", code: 2, userInfo: [NSLocalizedDescriptionKey: error.localizedDescription])
-        }
-        
-        return jpegURL
+        // Use simplified conversion
+        return try ImageConversionStrategyFactory.shared.convertHEICToJPEG(
+            heicURL: heicURL,
+            quality: quality
+        )
     }
     
     // Create a minimal valid PNG image for testing

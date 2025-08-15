@@ -28,7 +28,7 @@ class WrapperTest {
     static func testWithHEICImage() async {
         print("📱 Testing with HEIC image...")
         
-        let heicImagePath = "/Users/alexanderfedin/Projects/nolock.social/Nolock.social.apps/nolock-ocr-swift-client/ExampleApp/IMG_4171.heic"
+        let heicImagePath = TestResources.getTestImagePath()
         let heicURL = URL(fileURLWithPath: heicImagePath)
         
         guard FileManager.default.fileExists(atPath: heicImagePath) else {
@@ -96,7 +96,7 @@ class WrapperTest {
     static func testWithCompletionHandler() {
         print("\n🔄 Testing with completion handler (non-async)...")
         
-        let heicImagePath = "/Users/alexanderfedin/Projects/nolock.social/Nolock.social.apps/nolock-ocr-swift-client/ExampleApp/IMG_4171.heic"
+        let heicImagePath = TestResources.getTestImagePath()
         let heicURL = URL(fileURLWithPath: heicImagePath)
         
         guard FileManager.default.fileExists(atPath: heicImagePath) else {

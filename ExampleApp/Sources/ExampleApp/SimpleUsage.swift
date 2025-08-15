@@ -45,7 +45,7 @@ func demonstrateWrapperUsage() async {
     do {
         // Process any image - HEIC, JPEG, PNG, etc.
         // The wrapper automatically converts HEIC to JPEG if needed
-        let anyImageURL = URL(fileURLWithPath: "/Users/alexanderfedin/Projects/nolock.social/Nolock.social.apps/nolock-ocr-swift-client/ExampleApp/IMG_4171.heic")
+        let anyImageURL = URL(fileURLWithPath: TestResources.getTestImagePath())
         
         if FileManager.default.fileExists(atPath: anyImageURL.path) {
             print("Processing image: \(anyImageURL.lastPathComponent)")
