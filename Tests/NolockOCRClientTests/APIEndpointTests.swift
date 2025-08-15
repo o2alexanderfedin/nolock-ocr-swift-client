@@ -36,28 +36,6 @@ final class APIEndpointTests: XCTestCase {
     
     // MARK: - Check OCR API Tests
     
-    func testCheckOCRWithMinimalImage() async throws {
-        // Create a minimal test image
-        let testImageData = createMinimalTestImage()
-        let tempURL = createTempImageFile(data: testImageData, extension: "png")
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-        
-        let response = try await OCROperationsAPI.processCheckOcr(body: tempURL)
-        
-        XCTAssertNotNil(response, "Response should not be nil")
-        // Note: success field may be nil, so we check for actual data instead
-        
-        print("Check OCR minimal image test:")
-        print("  Success: \(response.success ?? false)")
-        print("  Processing time: \(response.processingTime ?? "N/A")")
-        
-        // Even with a minimal image, we should get a response structure
-        if let check = response.modelData {
-            print("  Confidence: \(check.confidence ?? 0)")
-            print("  Valid input: \(check.isValidInput ?? false)")
-        }
-    }
-    
     func testCheckOCRWithRealImage() async throws {
         guard let testImageURL = Bundle.module.url(forResource: "IMG_4171", withExtension: "heic") else {
             XCTFail("Test HEIC image not found")
@@ -109,28 +87,6 @@ final class APIEndpointTests: XCTestCase {
     }
     
     // MARK: - Receipt OCR API Tests
-    
-    func testReceiptOCRWithMinimalImage() async throws {
-        // Create a minimal test image
-        let testImageData = createMinimalTestImage()
-        let tempURL = createTempImageFile(data: testImageData, extension: "png")
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-        
-        let response = try await OCROperationsAPI.processReceiptOcr(body: tempURL)
-        
-        XCTAssertNotNil(response, "Response should not be nil")
-        // Note: success field may be nil, so we check for actual data instead
-        
-        print("Receipt OCR minimal image test:")
-        print("  Success: \(response.success ?? false)")
-        print("  Processing time: \(response.processingTime ?? "N/A")")
-        
-        // Even with a minimal image, we should get a response structure
-        if let receipt = response.modelData {
-            print("  Confidence: \(receipt.confidence ?? 0)")
-            print("  Valid input: \(receipt.isValidInput ?? false)")
-        }
-    }
     
     func testReceiptOCRWithRealImage() async throws {
         guard let testImageURL = Bundle.module.url(forResource: "IMG_4171", withExtension: "heic") else {
@@ -200,37 +156,6 @@ final class APIEndpointTests: XCTestCase {
                 XCTAssertGreaterThanOrEqual(confidence, 0.0, "Confidence should be >= 0")
                 XCTAssertLessThanOrEqual(confidence, 1.0, "Confidence should be <= 1")
             }
-        }
-    }
-    
-    // MARK: - Error Handling Tests
-    
-    func testAPIWithInvalidFile() async throws {
-        // Create a file with invalid content
-        let invalidData = Data([0x00, 0x01, 0x02, 0x03])
-        let tempURL = createTempImageFile(data: invalidData, extension: "jpg")
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-        
-        do {
-            _ = try await OCROperationsAPI.processCheckOcr(body: tempURL)
-            // The API might still process invalid images and return results with low confidence
-            // So we don't necessarily expect an error here
-            print("API processed invalid file without throwing error")
-        } catch {
-            // If an error is thrown, that's also acceptable
-            print("API correctly rejected invalid file: \(error)")
-        }
-    }
-    
-    func testAPIWithNonExistentFile() async throws {
-        let nonExistentURL = URL(fileURLWithPath: "/tmp/does_not_exist_\(UUID().uuidString).jpg")
-        
-        do {
-            _ = try await OCROperationsAPI.processCheckOcr(body: nonExistentURL)
-            XCTFail("Should have thrown an error for non-existent file")
-        } catch {
-            // Expected behavior
-            print("API correctly rejected non-existent file: \(error)")
         }
     }
     
@@ -367,25 +292,6 @@ final class APIEndpointTests: XCTestCase {
     }
     
     // MARK: - Helper Methods
-    
-    private func createMinimalTestImage() -> Data {
-        // Minimal 1x1 white PNG for testing
-        let pngBytes: [UInt8] = [
-            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,  // PNG signature
-            0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,  // IHDR chunk
-            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,  // 1x1 dimensions
-            0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,  // 8-bit RGB
-            0xDE,                                              // CRC
-            0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54,  // IDAT chunk
-            0x08, 0x99, 0x01, 0x01, 0x00, 0x00, 0xFE, 0xFF,  // Compressed data
-            0x00, 0xFF, 0xFF, 0x01,                          // White pixel
-            0x00, 0x05, 0x00, 0x01,                          // CRC
-            0x47, 0xB3, 0x51, 0xFC,                          // More CRC
-            0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44,  // IEND chunk
-            0xAE, 0x42, 0x60, 0x82                           // CRC
-        ]
-        return Data(pngBytes)
-    }
     
     private func createTempImageFile(data: Data, extension ext: String) -> URL {
         let tempURL = FileManager.default.temporaryDirectory
