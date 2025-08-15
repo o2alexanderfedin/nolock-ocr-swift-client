@@ -10,10 +10,6 @@ final class DateParsingTests: XCTestCase {
     override func setUpWithError() throws {
         // Configure the API base URL before each test
         NolockOCRClientAPI.basePath = Self.testBaseURL
-        
-        // Configure wrapper settings
-        OCROperationsWrapper.jpegQuality = 0.95
-        OCROperationsWrapper.autoCleanupTempFiles = true
     }
     
     // MARK: - Check Date Parsing Tests

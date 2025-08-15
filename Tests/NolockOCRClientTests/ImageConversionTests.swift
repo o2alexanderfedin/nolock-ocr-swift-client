@@ -10,12 +10,6 @@ import UniformTypeIdentifiers
 
 final class ImageConversionTests: XCTestCase {
     
-    override func setUpWithError() throws {
-        // Configure wrapper settings
-        OCROperationsWrapper.jpegQuality = 0.95
-        OCROperationsWrapper.autoCleanupTempFiles = true
-    }
-    
     // MARK: - HEIC Detection Tests
     
     func testHEICImageDetection() throws {
@@ -219,17 +213,11 @@ final class ImageConversionTests: XCTestCase {
             return
         }
         
-        // Test with cleanup enabled
-        OCROperationsWrapper.autoCleanupTempFiles = true
-        
         let jpegURL1 = try OCROperationsWrapper.convertHEICToJPEG(heicURL: heicURL, quality: 0.95)
         
         // File should exist immediately after conversion
         XCTAssertTrue(FileManager.default.fileExists(atPath: jpegURL1.path), 
                      "JPEG should exist immediately after conversion")
-        
-        // Test with cleanup disabled
-        OCROperationsWrapper.autoCleanupTempFiles = false
         
         let jpegURL2 = try OCROperationsWrapper.convertHEICToJPEG(heicURL: heicURL, quality: 0.95)
         defer { try? FileManager.default.removeItem(at: jpegURL2) }
@@ -240,8 +228,5 @@ final class ImageConversionTests: XCTestCase {
         
         // Clean up manually
         try? FileManager.default.removeItem(at: jpegURL1)
-        
-        // Reset to default
-        OCROperationsWrapper.autoCleanupTempFiles = true
     }
 }
