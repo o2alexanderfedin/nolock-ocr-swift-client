@@ -211,28 +211,10 @@ public class OCROperationsWrapper {
     ///   - quality: JPEG compression quality (0.0 to 1.0)
     /// - Returns: URL of the converted JPEG file
     public static func convertHEICToJPEG(heicURL: URL, quality: Double) throws -> URL {
-        // Read HEIC data
-        let heicData = try Data(contentsOf: heicURL)
-        
-        // Create CGImageSource from HEIC data
-        guard let imageSource = CGImageSourceCreateWithData(heicData as CFData, nil),
-              let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
-            throw OCRConversionError.failedToCreateImageFromHEIC
-        }
-        
-        // Create temporary JPEG file URL
-        let jpegURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ocr-converted-\(UUID().uuidString)")
-            .appendingPathExtension("jpg")
-        
-        // Use strategy pattern for JPEG creation
-        try ImageConversionStrategyFactory.shared.createJPEGDestination(
-            at: jpegURL,
-            image: cgImage,
+        return try ImageConversionStrategyFactory.shared.convertHEICToJPEG(
+            heicURL: heicURL,
             quality: quality
         )
-        
-        return jpegURL
     }
 }
 

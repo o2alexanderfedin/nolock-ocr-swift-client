@@ -20,17 +20,37 @@ import UniformTypeIdentifiers
 
 /// Protocol defining the image conversion strategy
 public protocol ImageConversionStrategy {
-    /// Convert HEIC/HEIF image to JPEG
-    func convertToJPEG(from heicData: Data, quality: Double) throws -> Data
+    /// Get JPEG type identifier for the platform
+    var jpegTypeIdentifier: String { get }
     
     /// Create JPEG destination and write image
     func createJPEGDestination(at url: URL, image: CGImage, quality: Double) throws
+}
+
+// MARK: - Shared Implementation (DRY)
+
+extension ImageConversionStrategy {
+    /// Common HEIC to CGImage conversion - shared by all strategies
+    func createCGImage(from heicData: Data) throws -> CGImage {
+        guard let imageSource = CGImageSourceCreateWithData(heicData as CFData, nil),
+              let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
+            throw OCRConversionError.failedToCreateImageFromHEIC
+        }
+        return cgImage
+    }
     
-    /// Get JPEG type identifier string
-    var jpegTypeIdentifier: String { get }
-    
-    /// Check if URL has HEIC/HEIF type (optional check)
-    func isHEICByResourceType(url: URL) -> Bool
+    /// Common implementation for converting HEIC data to JPEG at a URL
+    public func convertHEICToJPEG(heicURL: URL, quality: Double) throws -> URL {
+        let heicData = try Data(contentsOf: heicURL)
+        let cgImage = try createCGImage(from: heicData)
+        
+        let jpegURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ocr-converted-\(UUID().uuidString)")
+            .appendingPathExtension("jpg")
+        
+        try createJPEGDestination(at: jpegURL, image: cgImage, quality: quality)
+        return jpegURL
+    }
 }
 
 // MARK: - Modern Strategy (iOS 14.0+, macOS 11.0+)
@@ -38,40 +58,18 @@ public protocol ImageConversionStrategy {
 @available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *)
 class ModernImageConversionStrategy: ImageConversionStrategy {
     
-    func convertToJPEG(from heicData: Data, quality: Double) throws -> Data {
-        guard let imageSource = CGImageSourceCreateWithData(heicData as CFData, nil),
-              let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
-            throw OCRConversionError.failedToCreateImageFromHEIC
-        }
-        
-        let data = NSMutableData()
-        
-        guard let destination = CGImageDestinationCreateWithData(
-            data as CFMutableData,
-            UTType.jpeg.identifier as CFString,
-            1,
-            nil
-        ) else {
-            throw OCRConversionError.failedToCreateJPEGDestination
-        }
-        
-        let options: [CFString: Any] = [
-            kCGImageDestinationLossyCompressionQuality: quality
-        ]
-        
-        CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
-        
-        guard CGImageDestinationFinalize(destination) else {
-            throw OCRConversionError.failedToFinalizeJPEG
-        }
-        
-        return data as Data
+    var jpegTypeIdentifier: String {
+        #if canImport(UniformTypeIdentifiers)
+        return UTType.jpeg.identifier
+        #else
+        return "public.jpeg"
+        #endif
     }
     
     func createJPEGDestination(at url: URL, image: CGImage, quality: Double) throws {
         guard let destination = CGImageDestinationCreateWithURL(
             url as CFURL,
-            UTType.jpeg.identifier as CFString,
+            jpegTypeIdentifier as CFString,
             1,
             nil
         ) else {
@@ -87,18 +85,6 @@ class ModernImageConversionStrategy: ImageConversionStrategy {
         guard CGImageDestinationFinalize(destination) else {
             throw OCRConversionError.failedToFinalizeJPEG
         }
-    }
-    
-    var jpegTypeIdentifier: String {
-        return UTType.jpeg.identifier
-    }
-    
-    func isHEICByResourceType(url: URL) -> Bool {
-        if let typeIdentifier = try? url.resourceValues(forKeys: [.typeIdentifierKey]).typeIdentifier {
-            let heicTypes = [UTType.heic.identifier, UTType.heif.identifier]
-            return heicTypes.contains(typeIdentifier)
-        }
-        return false
     }
 }
 
@@ -106,40 +92,14 @@ class ModernImageConversionStrategy: ImageConversionStrategy {
 
 class LegacyImageConversionStrategy: ImageConversionStrategy {
     
-    func convertToJPEG(from heicData: Data, quality: Double) throws -> Data {
-        guard let imageSource = CGImageSourceCreateWithData(heicData as CFData, nil),
-              let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
-            throw OCRConversionError.failedToCreateImageFromHEIC
-        }
-        
-        let data = NSMutableData()
-        
-        guard let destination = CGImageDestinationCreateWithData(
-            data as CFMutableData,
-            "public.jpeg" as CFString,
-            1,
-            nil
-        ) else {
-            throw OCRConversionError.failedToCreateJPEGDestination
-        }
-        
-        let options: [CFString: Any] = [
-            kCGImageDestinationLossyCompressionQuality: quality
-        ]
-        
-        CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
-        
-        guard CGImageDestinationFinalize(destination) else {
-            throw OCRConversionError.failedToFinalizeJPEG
-        }
-        
-        return data as Data
+    var jpegTypeIdentifier: String {
+        return "public.jpeg"
     }
     
     func createJPEGDestination(at url: URL, image: CGImage, quality: Double) throws {
         guard let destination = CGImageDestinationCreateWithURL(
             url as CFURL,
-            "public.jpeg" as CFString,
+            jpegTypeIdentifier as CFString,
             1,
             nil
         ) else {
@@ -155,15 +115,6 @@ class LegacyImageConversionStrategy: ImageConversionStrategy {
         guard CGImageDestinationFinalize(destination) else {
             throw OCRConversionError.failedToFinalizeJPEG
         }
-    }
-    
-    var jpegTypeIdentifier: String {
-        return "public.jpeg"
-    }
-    
-    func isHEICByResourceType(url: URL) -> Bool {
-        // Legacy systems rely on file extension or header checking only
-        return false
     }
 }
 
@@ -190,23 +141,13 @@ public class ImageConversionStrategyFactory {
         #endif
     }
     
-    /// Convert HEIC data to JPEG data
-    public func convertToJPEG(from heicData: Data, quality: Double) throws -> Data {
-        return try strategy.convertToJPEG(from: heicData, quality: quality)
+    /// Convert HEIC file to JPEG (main public API)
+    public func convertHEICToJPEG(heicURL: URL, quality: Double) throws -> URL {
+        return try strategy.convertHEICToJPEG(heicURL: heicURL, quality: quality)
     }
     
-    /// Create JPEG file at URL from CGImage
-    public func createJPEGDestination(at url: URL, image: CGImage, quality: Double) throws {
+    /// Create JPEG file at URL from CGImage (for internal use)
+    internal func createJPEGDestination(at url: URL, image: CGImage, quality: Double) throws {
         try strategy.createJPEGDestination(at: url, image: image, quality: quality)
-    }
-    
-    /// Get JPEG type identifier for current platform
-    public var jpegTypeIdentifier: String {
-        return strategy.jpegTypeIdentifier
-    }
-    
-    /// Check if file is HEIC by resource type (if supported)
-    public func isHEICByResourceType(url: URL) -> Bool {
-        return strategy.isHEICByResourceType(url: url)
     }
 }
