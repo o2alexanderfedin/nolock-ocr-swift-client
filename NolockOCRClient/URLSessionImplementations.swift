@@ -583,24 +583,7 @@ private class FormDataEncoding: ParameterEncoding {
     }
 
     func mimeType(for url: URL) -> String {
-        let pathExtension = url.pathExtension
-
-        if #available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *) {
-            #if canImport(UniformTypeIdentifiers)
-            if let utType = UTType(filenameExtension: pathExtension) {
-                return utType.preferredMIMEType ?? "application/octet-stream"
-            }
-            #else
-            return "application/octet-stream" 
-            #endif
-        } else {
-            if let uti = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, pathExtension as NSString, nil)?.takeRetainedValue(),
-                    let mimetype = UTTypeCopyPreferredTagWithClass(uti, kUTTagClassMIMEType)?.takeRetainedValue() {
-                return mimetype as String
-            }
-            return "application/octet-stream"
-        }
-        return "application/octet-stream"
+        return MimeTypeStrategyFactory.shared.mimeType(for: url)
     }
 
 }

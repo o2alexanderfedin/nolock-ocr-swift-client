@@ -5,8 +5,22 @@ import NolockOCRClient
 let args = CommandLine.arguments
 let runTests = args.contains("--test") || args.contains("-t")
 let runDateTest = args.contains("--date-test") || args.contains("-d")
+let runWrapperTest = args.contains("--wrapper") || args.contains("-w")
+let runHeaderTest = args.contains("--header") || args.contains("-h")
 
-if runDateTest {
+if runHeaderTest {
+    // Run header detection tests
+    Task {
+        await runHeaderDetectionTests()
+        exit(0)
+    }
+} else if runWrapperTest {
+    // Run wrapper tests
+    Task {
+        await runWrapperTests()
+        exit(0)
+    }
+} else if runDateTest {
     // Run date parsing test
     Task {
         await runDateParsingTest()
@@ -22,7 +36,8 @@ if runDateTest {
     // Run example
     print("🚀 Nolock OCR Client Example")
     print("============================\n")
-    print("Tip: Run with --test flag to execute integration tests\n")
+    print("Tip: Run with --test flag to execute integration tests")
+    print("     Run with --wrapper flag to test OCROperationsWrapper\n")
     
     // Configure the API
     NolockOCRClientAPI.basePath = "https://nolock-ocr-services-qbhx5.ondigitalocean.app"
