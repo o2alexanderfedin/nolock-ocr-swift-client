@@ -14,6 +14,9 @@ let package = Package(
             name: "ExampleApp",
             dependencies: [
                 .product(name: "NolockOCRClient", package: "nolock-ocr-swift-client")
+            ],
+            resources: [
+                .process("Resources")
             ]
         )
     ]

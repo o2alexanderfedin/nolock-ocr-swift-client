@@ -27,7 +27,7 @@ class HeaderDetectionTest {
     static func testWithCorrectExtension() async {
         print("📱 Test 1: HEIC file with .heic extension")
         
-        let heicPath = "/Users/alexanderfedin/Projects/nolock.social/Nolock.social.apps/nolock-ocr-swift-client/ExampleApp/IMG_4171.heic"
+        let heicPath = TestResources.getTestImagePath()
         let heicURL = URL(fileURLWithPath: heicPath)
         
         guard FileManager.default.fileExists(atPath: heicPath) else {
@@ -55,7 +55,7 @@ class HeaderDetectionTest {
     static func testWithWrongExtension() async {
         print("\n📷 Test 2: HEIC file with wrong extension (.jpg)")
         
-        let originalPath = "/Users/alexanderfedin/Projects/nolock.social/Nolock.social.apps/nolock-ocr-swift-client/ExampleApp/IMG_4171.heic"
+        let originalPath = TestResources.getTestImagePath()
         let tempPath = FileManager.default.temporaryDirectory
             .appendingPathComponent("test_image_wrong_ext.jpg") // Wrong extension!
         

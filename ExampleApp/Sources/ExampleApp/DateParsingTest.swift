@@ -15,8 +15,8 @@ func testDateParsingIssue() async {
     // Configure the API
     NolockOCRClientAPI.basePath = "https://nolock-ocr-services-qbhx5.ondigitalocean.app"
     
-    // Use the HEIC image and convert to JPEG
-    let heicImagePath = "/Users/alexanderfedin/Projects/nolock.social/Nolock.social.apps/nolock-ocr-swift-client/ExampleApp/IMG_4171.heic"
+    // Use embedded resource or fallback to filesystem
+    let heicImagePath = TestResources.getTestImagePath()
     
     if FileManager.default.fileExists(atPath: heicImagePath) {
         print("📎 Using HEIC image: \(heicImagePath)")

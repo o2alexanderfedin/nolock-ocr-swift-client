@@ -46,8 +46,8 @@ class IntegrationTests {
     static func testCheckOCR() async {
         print("\n📄 Testing Check OCR...")
         
-        // Use the HEIC image and convert to JPEG
-        let heicImagePath = "/Users/alexanderfedin/Projects/nolock.social/Nolock.social.apps/nolock-ocr-swift-client/ExampleApp/IMG_4171.heic"
+        // Use embedded resource or fallback to filesystem
+        let heicImagePath = TestResources.getTestImagePath()
         
         guard FileManager.default.fileExists(atPath: heicImagePath) else {
             print("  ⚠️ HEIC image not found at: \(heicImagePath)")
@@ -125,8 +125,8 @@ class IntegrationTests {
     static func testReceiptOCR() async {
         print("\n🧾 Testing Receipt OCR...")
         
-        // Use the same HEIC image as for checks
-        let heicImagePath = "/Users/alexanderfedin/Projects/nolock.social/Nolock.social.apps/nolock-ocr-swift-client/ExampleApp/IMG_4171.heic"
+        // Use embedded resource or fallback to filesystem
+        let heicImagePath = TestResources.getTestImagePath()
         
         guard FileManager.default.fileExists(atPath: heicImagePath) else {
             print("  ⚠️ HEIC image not found at: \(heicImagePath)")
