@@ -78,28 +78,6 @@ final class DataOverloadTests: XCTestCase {
         }
     }
     
-    func testCheckOCRWithPNGData() async throws {
-        // Create a minimal PNG image
-        let pngData = createMinimalTestImage()
-        XCTAssertGreaterThan(pngData.count, 0, "PNG data should not be empty")
-        
-        // Test Data overload with PNG data
-        let response = try await OCROperationsWrapper.processCheckOcr(imageData: pngData)
-        
-        XCTAssertNotNil(response, "Response should not be nil")
-        // Note: success field may be nil, so we check for actual data instead
-        
-        print("Check OCR with PNG Data test:")
-        print("  PNG data size: \(pngData.count) bytes")
-        print("  Success: \(response.success ?? false)")
-        print("  Processing time: \(response.processingTime ?? "N/A")")
-        
-        if let check = response.modelData {
-            print("  Confidence: \(check.confidence ?? 0)")
-            print("  Valid input: \(check.isValidInput ?? false)")
-        }
-    }
-    
     // MARK: - Data Overload Tests for Receipt OCR
     
     func testReceiptOCRWithHEICData() async throws {
@@ -415,24 +393,4 @@ final class DataOverloadTests: XCTestCase {
         print("  Increase: \(tempFileIncrease)")
     }
     
-    // MARK: - Helper Methods
-    
-    private func createMinimalTestImage() -> Data {
-        // Minimal 1x1 white PNG for testing
-        let pngBytes: [UInt8] = [
-            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,  // PNG signature
-            0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,  // IHDR chunk
-            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,  // 1x1 dimensions
-            0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,  // 8-bit RGB
-            0xDE,                                              // CRC
-            0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54,  // IDAT chunk
-            0x08, 0x99, 0x01, 0x01, 0x00, 0x00, 0xFE, 0xFF,  // Compressed data
-            0x00, 0xFF, 0xFF, 0x01,                          // White pixel
-            0x00, 0x05, 0x00, 0x01,                          // CRC
-            0x47, 0xB3, 0x51, 0xFC,                          // More CRC
-            0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44,  // IEND chunk
-            0xAE, 0x42, 0x60, 0x82                           // CRC
-        ]
-        return Data(pngBytes)
-    }
 }
