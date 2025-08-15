@@ -218,56 +218,16 @@ class IntegrationTests {
             .appendingPathComponent("converted-\(UUID().uuidString)")
             .appendingPathExtension("jpg")
         
-        // Create destination for JPEG
-        #if canImport(UniformTypeIdentifiers)
-        if #available(macOS 11.0, iOS 14.0, *) {
-            guard let destination = CGImageDestinationCreateWithURL(jpegURL as CFURL, UTType.jpeg.identifier as CFString, 1, nil) else {
-                throw NSError(domain: "ImageConversion", code: 2, userInfo: [NSLocalizedDescriptionKey: "Failed to create JPEG destination"])
-            }
-            
-            // Set compression quality
-            let options: [CFString: Any] = [
-                kCGImageDestinationLossyCompressionQuality: quality
-            ]
-            
-            // Add image to destination
-            CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
-            
-            // Finalize the JPEG file
-            guard CGImageDestinationFinalize(destination) else {
-                throw NSError(domain: "ImageConversion", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to finalize JPEG"])
-            }
-        } else {
-            // Fallback for older OS versions
-            guard let destination = CGImageDestinationCreateWithURL(jpegURL as CFURL, "public.jpeg" as CFString, 1, nil) else {
-                throw NSError(domain: "ImageConversion", code: 2, userInfo: [NSLocalizedDescriptionKey: "Failed to create JPEG destination"])
-            }
-            
-            let options: [CFString: Any] = [
-                kCGImageDestinationLossyCompressionQuality: quality
-            ]
-            
-            CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
-            
-            guard CGImageDestinationFinalize(destination) else {
-                throw NSError(domain: "ImageConversion", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to finalize JPEG"])
-            }
+        // Use strategy pattern for JPEG creation
+        do {
+            try ImageConversionStrategyFactory.shared.createJPEGDestination(
+                at: jpegURL,
+                image: cgImage,
+                quality: quality
+            )
+        } catch {
+            throw NSError(domain: "ImageConversion", code: 2, userInfo: [NSLocalizedDescriptionKey: error.localizedDescription])
         }
-        #else
-        guard let destination = CGImageDestinationCreateWithURL(jpegURL as CFURL, "public.jpeg" as CFString, 1, nil) else {
-            throw NSError(domain: "ImageConversion", code: 2, userInfo: [NSLocalizedDescriptionKey: "Failed to create JPEG destination"])
-        }
-        
-        let options: [CFString: Any] = [
-            kCGImageDestinationLossyCompressionQuality: quality
-        ]
-        
-        CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
-        
-        guard CGImageDestinationFinalize(destination) else {
-            throw NSError(domain: "ImageConversion", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to finalize JPEG"])
-        }
-        #endif
         
         return jpegURL
     }
