@@ -19,10 +19,6 @@ final class NolockOCRClientTests: XCTestCase {
     override func setUpWithError() throws {
         // Configure the API base URL before each test
         NolockOCRClientAPI.basePath = Self.testBaseURL
-        
-        // Configure wrapper settings
-        OCROperationsWrapper.jpegQuality = 0.95
-        OCROperationsWrapper.autoCleanupTempFiles = true
     }
     
     override func tearDownWithError() throws {
@@ -434,26 +430,6 @@ final class NolockOCRClientTests: XCTestCase {
         }
         
         wait(for: [checkExpectation, receiptExpectation], timeout: 60.0)
-    }
-    
-    // MARK: - Configuration Tests
-    
-    func testWrapperConfiguration() {
-        // Test wrapper configuration settings
-        let originalQuality = OCROperationsWrapper.jpegQuality
-        let originalCleanup = OCROperationsWrapper.autoCleanupTempFiles
-        
-        // Test setting different quality
-        OCROperationsWrapper.jpegQuality = 0.8
-        XCTAssertEqual(OCROperationsWrapper.jpegQuality, 0.8, "JPEG quality should be settable")
-        
-        // Test setting cleanup flag
-        OCROperationsWrapper.autoCleanupTempFiles = false
-        XCTAssertFalse(OCROperationsWrapper.autoCleanupTempFiles, "Auto cleanup should be settable")
-        
-        // Restore original settings
-        OCROperationsWrapper.jpegQuality = originalQuality
-        OCROperationsWrapper.autoCleanupTempFiles = originalCleanup
     }
     
     // MARK: - Performance Tests

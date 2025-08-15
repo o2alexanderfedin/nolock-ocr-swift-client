@@ -19,12 +19,6 @@ import UniformTypeIdentifiers
 /// Wrapper class for OCR operations that automatically handles HEIC to JPEG conversion
 public class OCROperationsWrapper {
     
-    /// JPEG compression quality (0.0 to 1.0)
-    public static var jpegQuality: Double = 0.95
-    
-    /// Whether to automatically delete temporary JPEG files after processing
-    public static var autoCleanupTempFiles: Bool = true
-    
     /// Process check OCR with automatic HEIC conversion if needed
     /// - Parameter imageData: Data containing the image (HEIC, JPEG, PNG, etc.)
     /// - Returns: CheckModelOcrResponse from the API
@@ -52,7 +46,7 @@ public class OCROperationsWrapper {
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
     public static func processCheckOcr(imageURL: URL) async throws -> CheckModelOcrResponse {
         let processURL = try await prepareImageForOCR(imageURL: imageURL)
-        let shouldCleanup = processURL != imageURL && autoCleanupTempFiles
+        let shouldCleanup = processURL != imageURL
         
         defer {
             if shouldCleanup {
@@ -90,7 +84,7 @@ public class OCROperationsWrapper {
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
     public static func processReceiptOcr(imageURL: URL) async throws -> ReceiptModelOcrResponse {
         let processURL = try await prepareImageForOCR(imageURL: imageURL)
-        let shouldCleanup = processURL != imageURL && autoCleanupTempFiles
+        let shouldCleanup = processURL != imageURL
         
         defer {
             if shouldCleanup {
@@ -126,7 +120,7 @@ public class OCROperationsWrapper {
         Task {
             do {
                 let processURL = try await prepareImageForOCR(imageURL: imageURL)
-                let shouldCleanup = processURL != imageURL && autoCleanupTempFiles
+                let shouldCleanup = processURL != imageURL
                 
                 OCROperationsAPI.processCheckOcrWithRequestBuilder(body: processURL)
                     .execute { result in
@@ -173,7 +167,7 @@ public class OCROperationsWrapper {
         Task {
             do {
                 let processURL = try await prepareImageForOCR(imageURL: imageURL)
-                let shouldCleanup = processURL != imageURL && autoCleanupTempFiles
+                let shouldCleanup = processURL != imageURL
                 
                 OCROperationsAPI.processReceiptOcrWithRequestBuilder(body: processURL)
                     .execute { result in
@@ -204,7 +198,7 @@ public class OCROperationsWrapper {
     private static func prepareImageForOCR(imageURL: URL) async throws -> URL {
         // Check if the file is HEIC
         if isHEICImage(url: imageURL) {
-            return try convertHEICToJPEG(heicURL: imageURL, quality: jpegQuality)
+            return try convertHEICToJPEG(heicURL: imageURL, quality: 0.95)
         }
         
         // Return original URL for non-HEIC images
@@ -231,7 +225,7 @@ public class OCROperationsWrapper {
         // Bytes 4-7 should be "ftyp" (66 74 79 70)
         // Bytes 8-11 contain the major brand
         let ftypBytes = headerData.subdata(in: 4..<8)
-        let ftypString = String(data: ftypBytes, encoding: .ascii)
+        let ftypString = String(data: ftypBytes, encoding: .utf8)
         
         guard ftypString == "ftyp" else {
             return false
@@ -239,7 +233,7 @@ public class OCROperationsWrapper {
         
         // Check the major brand (bytes 8-11)
         let brandBytes = headerData.subdata(in: 8..<12)
-        let brandString = String(data: brandBytes, encoding: .ascii)
+        let brandString = String(data: brandBytes, encoding: .utf8)
         
         // HEIC/HEIF major brands
         let heicBrands = [
@@ -267,7 +261,7 @@ public class OCROperationsWrapper {
         // Look for HEIC/HEIF brands in compatible brands section
         if extendedData.count >= 16 {
             let compatibleBrandsData = extendedData.subdata(in: 16..<min(extendedData.count, 64))
-            let compatibleString = String(data: compatibleBrandsData, encoding: .ascii) ?? ""
+            let compatibleString = String(data: compatibleBrandsData, encoding: .utf8) ?? ""
             
             for brand in heicBrands {
                 if compatibleString.contains(brand) {
