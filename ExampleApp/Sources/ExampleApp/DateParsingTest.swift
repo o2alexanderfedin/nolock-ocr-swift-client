@@ -1,5 +1,11 @@
 import Foundation
 import NolockOCRClient
+#if canImport(ImageIO)
+import ImageIO
+#endif
+#if canImport(UniformTypeIdentifiers)
+import UniformTypeIdentifiers
+#endif
 
 // Test specifically for the date parsing issue
 func testDateParsingIssue() async {
@@ -9,17 +15,21 @@ func testDateParsingIssue() async {
     // Configure the API
     NolockOCRClientAPI.basePath = "https://nolock-ocr-services-qbhx5.ondigitalocean.app"
     
-    // Use the actual test image if it exists
-    let testImagePath = "test-check.jpg"
-    let testImageURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-        .appendingPathComponent(testImagePath)
+    // Use the HEIC image and convert to JPEG
+    let heicImagePath = "/Users/alexanderfedin/Projects/nolock.social/Nolock.social.apps/nolock-ocr-swift-client/ExampleApp/IMG_4171.heic"
     
-    if FileManager.default.fileExists(atPath: testImageURL.path) {
-        print("📎 Using test image: \(testImagePath)")
+    if FileManager.default.fileExists(atPath: heicImagePath) {
+        print("📎 Using HEIC image: \(heicImagePath)")
+        print("🔄 Converting HEIC to JPEG (95% quality)...")
         
         do {
+            // Convert HEIC to JPEG
+            let jpegURL = try IntegrationTests.convertHEICToJPEG(heicPath: heicImagePath, quality: 0.95)
+            defer { try? FileManager.default.removeItem(at: jpegURL) }
+            
+            print("✅ Conversion successful, JPEG saved to: \(jpegURL.lastPathComponent)")
             print("📤 Sending check image to OCR service...")
-            let response = try await OCROperationsAPI.processCheckOcr(body: testImageURL)
+            let response = try await OCROperationsAPI.processCheckOcr(body: jpegURL)
             
             print("✅ Request succeeded!")
             print("   Success: \(response.success ?? false)")
@@ -115,8 +125,8 @@ func testDateParsingIssue() async {
         }
         
     } else {
-        print("⚠️  Test image not found: \(testImagePath)")
-        print("   Please ensure test-check.jpg exists in the current directory")
+        print("⚠️  HEIC image not found: \(heicImagePath)")
+        print("   Please ensure the HEIC image exists at the specified path")
     }
 }
 
@@ -125,15 +135,19 @@ func testReceiptDateParsing() async {
     print("\n🧾 Testing Receipt Date Parsing")
     print("================================\n")
     
-    // Use the same test image
-    let testImagePath = "test-check.jpg"
-    let testImageURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-        .appendingPathComponent(testImagePath)
+    // Use the same HEIC image
+    let heicImagePath = "/Users/alexanderfedin/Projects/nolock.social/Nolock.social.apps/nolock-ocr-swift-client/ExampleApp/IMG_4171.heic"
     
-    if FileManager.default.fileExists(atPath: testImageURL.path) {
+    if FileManager.default.fileExists(atPath: heicImagePath) {
+        print("🔄 Converting HEIC to JPEG (95% quality)...")
         do {
+            // Convert HEIC to JPEG
+            let jpegURL = try IntegrationTests.convertHEICToJPEG(heicPath: heicImagePath, quality: 0.95)
+            defer { try? FileManager.default.removeItem(at: jpegURL) }
+            
+            print("✅ Conversion successful")
             print("📤 Sending image to Receipt OCR service...")
-            let response = try await OCROperationsAPI.processReceiptOcr(body: testImageURL)
+            let response = try await OCROperationsAPI.processReceiptOcr(body: jpegURL)
             
             print("✅ Receipt request succeeded!")
             print("   Processing time: \(response.processingTime ?? "N/A")")
@@ -179,6 +193,9 @@ func testReceiptDateParsing() async {
         } catch {
             print("❌ Receipt OCR error: \(error)")
         }
+    } else {
+        print("⚠️  HEIC image not found: \(heicImagePath)")
+        print("   Please ensure the HEIC image exists at the specified path")
     }
 }
 
