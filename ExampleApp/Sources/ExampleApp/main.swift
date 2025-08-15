@@ -4,32 +4,31 @@ import NolockOCRClient
 // Check for command line arguments
 let args = CommandLine.arguments
 let runTests = args.contains("--test") || args.contains("-t")
-let runDateTest = args.contains("--date-test") || args.contains("-d")
-let runWrapperTest = args.contains("--wrapper") || args.contains("-w")
-let runHeaderTest = args.contains("--header") || args.contains("-h")
 
-if runHeaderTest {
-    // Run header detection tests
+if runTests {
+    // Configure the API
+    NolockOCRClientAPI.basePath = "https://nolock-ocr-services-qbhx5.ondigitalocean.app"
+    
+    // Run all tests
     Task {
-        await runHeaderDetectionTests()
-        exit(0)
-    }
-} else if runWrapperTest {
-    // Run wrapper tests
-    Task {
-        await runWrapperTests()
-        exit(0)
-    }
-} else if runDateTest {
-    // Run date parsing test
-    Task {
-        await runDateParsingTest()
-        exit(0)
-    }
-} else if runTests {
-    // Run integration tests
-    Task {
-        await IntegrationTests.runTests()
+        print("🧪 Running All Test Suites")
+        print("==========================\n")
+        
+        do {
+            let healthResponse = try await HealthAPI.healthCheck()
+            print("✅ Service is healthy: \(healthResponse)\n")
+            
+            await runHeaderDetectionTests()
+            await runWrapperTests()
+            await runDateParsingTest()
+            await IntegrationTests.runTests()
+            
+            print("\n==========================")
+            print("✅ All test suites completed successfully!")
+        } catch {
+            print("❌ Error during tests: \(error)")
+        }
+        
         exit(0)
     }
 } else {

@@ -21,7 +21,7 @@ class HeaderDetectionTest {
         await testWithNonHEICFile()
         
         print("\n=========================================")
-        print("✅ Header detection tests completed")
+        print("✅ All tests completed")
     }
     
     static func testWithCorrectExtension() async {
