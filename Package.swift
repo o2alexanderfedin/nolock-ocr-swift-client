@@ -1,4 +1,4 @@
-// swift-tools-version:5.1
+// swift-tools-version:5.3
 
 import PackageDescription
 
@@ -28,6 +28,13 @@ let package = Package(
             name: "NolockOCRClient",
             dependencies: ["AnyCodable", ],
             path: "NolockOCRClient"
+        ),
+        .testTarget(
+            name: "NolockOCRClientTests",
+            dependencies: ["NolockOCRClient"],
+            resources: [
+                .process("Resources")
+            ]
         ),
     ]
 )
