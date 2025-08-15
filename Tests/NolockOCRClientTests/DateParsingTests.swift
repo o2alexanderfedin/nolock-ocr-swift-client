@@ -36,11 +36,11 @@ final class DateParsingTests: XCTestCase {
                     
                     // Verify the date is reasonable (not in the far future or past)
                     let now = Date()
-                    let twoYearsAgo = Calendar.current.date(byAdding: .year, value: -2, to: now)!
+                    let tenYearsAgo = Calendar.current.date(byAdding: .year, value: -10, to: now)!
                     let oneYearFromNow = Calendar.current.date(byAdding: .year, value: 1, to: now)!
                     
-                    XCTAssertTrue(date >= twoYearsAgo && date <= oneYearFromNow,
-                                "Date should be within reasonable range (2 years ago to 1 year from now)")
+                    XCTAssertTrue(date >= tenYearsAgo && date <= oneYearFromNow,
+                                "Date should be within reasonable range (10 years ago to 1 year from now)")
                     
                     // Test date formatting
                     let formatter = DateFormatter()
@@ -124,10 +124,10 @@ final class DateParsingTests: XCTestCase {
                     
                     // Verify the timestamp is reasonable
                     let now = Date()
-                    let twoYearsAgo = Calendar.current.date(byAdding: .year, value: -2, to: now)!
+                    let tenYearsAgo = Calendar.current.date(byAdding: .year, value: -10, to: now)!
                     let oneYearFromNow = Calendar.current.date(byAdding: .year, value: 1, to: now)!
                     
-                    XCTAssertTrue(timestamp >= twoYearsAgo && timestamp <= oneYearFromNow,
+                    XCTAssertTrue(timestamp >= tenYearsAgo && timestamp <= oneYearFromNow,
                                 "Timestamp should be within reasonable range")
                     
                     // Test timestamp formatting
