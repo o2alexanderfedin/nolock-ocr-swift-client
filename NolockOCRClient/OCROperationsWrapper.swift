@@ -26,6 +26,27 @@ public class OCROperationsWrapper {
     public static var autoCleanupTempFiles: Bool = true
     
     /// Process check OCR with automatic HEIC conversion if needed
+    /// - Parameter imageData: Data containing the image (HEIC, JPEG, PNG, etc.)
+    /// - Returns: CheckModelOcrResponse from the API
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    public static func processCheckOcr(imageData: Data) async throws -> CheckModelOcrResponse {
+        // Create temporary file from data
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("tmp")
+        
+        try imageData.write(to: tempURL)
+        
+        defer {
+            // Always clean up the temporary file we created
+            try? FileManager.default.removeItem(at: tempURL)
+        }
+        
+        // Delegate to URL-based method
+        return try await processCheckOcr(imageURL: tempURL)
+    }
+    
+    /// Process check OCR with automatic HEIC conversion if needed
     /// - Parameter imageURL: URL to the image file (HEIC, JPEG, PNG, etc.)
     /// - Returns: CheckModelOcrResponse from the API
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
@@ -43,6 +64,27 @@ public class OCROperationsWrapper {
     }
     
     /// Process receipt OCR with automatic HEIC conversion if needed
+    /// - Parameter imageData: Data containing the image (HEIC, JPEG, PNG, etc.)
+    /// - Returns: ReceiptModelOcrResponse from the API
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    public static func processReceiptOcr(imageData: Data) async throws -> ReceiptModelOcrResponse {
+        // Create temporary file from data
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("tmp")
+        
+        try imageData.write(to: tempURL)
+        
+        defer {
+            // Always clean up the temporary file we created
+            try? FileManager.default.removeItem(at: tempURL)
+        }
+        
+        // Delegate to URL-based method
+        return try await processReceiptOcr(imageURL: tempURL)
+    }
+    
+    /// Process receipt OCR with automatic HEIC conversion if needed
     /// - Parameter imageURL: URL to the image file (HEIC, JPEG, PNG, etc.)
     /// - Returns: ReceiptModelOcrResponse from the API
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
@@ -57,6 +99,22 @@ public class OCROperationsWrapper {
         }
         
         return try await OCROperationsAPI.processReceiptOcr(body: processURL)
+    }
+    
+    /// Process check OCR with completion handler (for non-async contexts)
+    /// - Parameters:
+    ///   - imageData: Data containing the image
+    ///   - completion: Completion handler with result
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    public static func processCheckOcr(imageData: Data, completion: @escaping (Result<CheckModelOcrResponse, Error>) -> Void) {
+        Task {
+            do {
+                let result = try await processCheckOcr(imageData: imageData)
+                completion(.success(result))
+            } catch {
+                completion(.failure(error))
+            }
+        }
     }
     
     /// Process check OCR with completion handler (for non-async contexts)
@@ -84,6 +142,22 @@ public class OCROperationsWrapper {
                             completion(.failure(error))
                         }
                     }
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    /// Process receipt OCR with completion handler (for non-async contexts)
+    /// - Parameters:
+    ///   - imageData: Data containing the image
+    ///   - completion: Completion handler with result
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    public static func processReceiptOcr(imageData: Data, completion: @escaping (Result<ReceiptModelOcrResponse, Error>) -> Void) {
+        Task {
+            do {
+                let result = try await processReceiptOcr(imageData: imageData)
+                completion(.success(result))
             } catch {
                 completion(.failure(error))
             }

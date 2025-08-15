@@ -21,6 +21,7 @@ if runTests {
             await runHeaderDetectionTests()
             await runWrapperTests()
             await runDateParsingTest()
+            await runDataOverloadTests()
             await IntegrationTests.runTests()
             
             print("\n==========================")
