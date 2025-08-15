@@ -57,6 +57,58 @@
 pod 'NolockOCRClient', '~> 1.5'
 ```
 
+### Updating to Latest Version
+
+Swift Package Manager caches package dependencies locally. When a new version is released, you need to explicitly update to get the latest changes.
+
+#### Updating Swift Package Dependencies in Xcode
+
+1. **Update Package to Latest Version**
+   - Open your project in Xcode
+   - Select your project in the navigator
+   - Select your project (not target) in the editor
+   - Click **Package Dependencies** tab
+   - Right-click on `nolock-ocr-swift-client`
+   - Select **Update to Latest Package Versions**
+
+2. **Force Reset Package Cache (if needed)**
+   - File → Packages → **Reset Package Caches**
+   - This forces Xcode to re-download all packages
+   - Useful when updates don't appear immediately
+
+3. **Command Line Alternative**
+   ```bash
+   # In your project directory
+   swift package update
+   ```
+
+4. **Update Specific Package Version**
+   - Double-click the package in Package Dependencies
+   - Change version rule to exact version (e.g., "1.5.2")
+   - Or use branch-based rule for development
+
+#### Updating CocoaPods Dependencies
+
+```bash
+# Update pod repo
+pod repo update
+
+# Update specific pod
+pod update NolockOCRClient
+
+# Or update all pods
+pod update
+```
+
+#### Verify Current Version
+
+```swift
+// Add this temporarily to verify the version in use
+print("NolockOCRClient version: check Package.resolved or Podfile.lock")
+```
+
+**Important**: After updating, clean build folder (Shift+Cmd+K) and rebuild to ensure no cached modules are used.
+
 ### Basic Integration
 
 #### 1. Configure the API (AppDelegate or SceneDelegate)
