@@ -4,8 +4,8 @@ Pod::Spec.new do |s|
   s.osx.deployment_target = '10.13'
   s.tvos.deployment_target = '11.0'
   s.watchos.deployment_target = '4.0'
-  s.version = '1.6.3'
-  s.source = { :git => 'https://github.com/o2alexanderfedin/nolock-ocr-swift-client.git', :tag => 'v1.6.3' }
+  s.version = '1.6.4'
+  s.source = { :git => 'https://github.com/o2alexanderfedin/nolock-ocr-swift-client.git', :tag => 'v1.6.4' }
   s.authors = 'OpenAPI Generator'
   s.license = 'Proprietary'
   s.homepage = 'https://github.com/OpenAPITools/openapi-generator'
