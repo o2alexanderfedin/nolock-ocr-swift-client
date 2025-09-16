@@ -14,6 +14,93 @@ open class NolockOCRClientAPI {
     public static var credential: URLCredential?
     public static var requestBuilderFactory: RequestBuilderFactory = URLSessionRequestBuilderFactory()
     public static var apiResponseQueue: DispatchQueue = .main
+
+    // MARK: - Authentication Configuration
+
+    /// Configures the client to use StoreKit authentication
+    /// - Parameters:
+    ///   - productIdentifiers: Optional set of product IDs to check for active subscriptions
+    ///   - configuration: Authentication configuration settings
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    public static func configureStoreKitAuthentication(
+        productIdentifiers: Set<String>? = nil,
+        configuration: AuthenticationConfiguration = .default
+    ) {
+        let provider = StoreKitAuthenticationProvider(
+            configuration: configuration,
+            productIdentifiers: productIdentifiers
+        )
+
+        // Configure the authentication manager
+        AuthenticationManager.shared.configure(
+            provider: provider,
+            configuration: configuration
+        )
+
+        // Switch to authenticated request builder factory
+        requestBuilderFactory = AuthenticatedRequestBuilderFactory(
+            authProvider: provider,
+            configuration: configuration
+        )
+    }
+
+    /// Configures the client to use mock authentication for testing
+    /// - Parameters:
+    ///   - mockToken: The mock JWT token to use
+    ///   - configuration: Authentication configuration settings
+    public static func configureMockAuthentication(
+        mockToken: String,
+        configuration: AuthenticationConfiguration = .default
+    ) {
+        let provider = MockAuthenticationProvider(token: mockToken)
+
+        // Configure the authentication manager
+        AuthenticationManager.shared.configure(
+            provider: provider,
+            configuration: configuration
+        )
+
+        // Switch to authenticated request builder factory
+        requestBuilderFactory = AuthenticatedRequestBuilderFactory(
+            authProvider: provider,
+            configuration: configuration
+        )
+    }
+
+    /// Configures the client with a custom authentication provider
+    /// - Parameters:
+    ///   - provider: Custom authentication provider
+    ///   - configuration: Authentication configuration settings
+    public static func configureAuthentication(
+        provider: AuthenticationProvider,
+        configuration: AuthenticationConfiguration = .default
+    ) {
+        // Configure the authentication manager
+        AuthenticationManager.shared.configure(
+            provider: provider,
+            configuration: configuration
+        )
+
+        // Switch to authenticated request builder factory
+        requestBuilderFactory = AuthenticatedRequestBuilderFactory(
+            authProvider: provider,
+            configuration: configuration
+        )
+    }
+
+    /// Disables authentication for the client
+    public static func disableAuthentication() {
+        // Clear authentication manager
+        AuthenticationManager.shared.configure(provider: nil)
+
+        // Switch back to standard request builder factory
+        requestBuilderFactory = URLSessionRequestBuilderFactory()
+    }
+
+    /// Clears any cached authentication tokens
+    public static func clearAuthenticationCache() {
+        AuthenticationManager.shared.clearCache()
+    }
 }
 
 open class RequestBuilder<T> {
