@@ -21,7 +21,7 @@ open class NolockOCRClientAPI {
             let provider = StoreKitAuthenticationProvider()
             let factory = AuthenticatedRequestBuilderFactory(
                 authProvider: provider,
-                authConfiguration: .default
+                configuration: .default
             )
             print("[NolockOCRClient] Automatic StoreKit authentication enabled - drop-in replacement active")
             return factory
