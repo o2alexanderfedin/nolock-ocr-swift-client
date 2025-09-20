@@ -71,10 +71,6 @@ struct ContentView: View {
         .onAppear {
             // Configure API endpoint
             NolockOCRClientAPI.basePath = "https://nolock-ocr-services-qbhx5.ondigitalocean.app"
-
-            // Configure authentication with StoreKit provider
-            let provider = StoreKitAuthenticationProvider()
-            NolockOCRClientAPI.configureAuthentication(provider: provider)
         }
     }
     
@@ -97,21 +93,7 @@ struct ContentView: View {
                 ocrResult = "No data found in image"
             }
         } catch {
-            // Check if it's an authentication error
-            if let authError = error as? AuthenticationError {
-                switch authError {
-                case .noActiveSubscription:
-                    ocrResult = "❌ No active subscription found. Please subscribe in the App Store."
-                case .invalidToken:
-                    ocrResult = "❌ Invalid authentication token. Please try again."
-                case .configurationError:
-                    ocrResult = "❌ Authentication configuration error."
-                case .networkError(let underlyingError):
-                    ocrResult = "❌ Network error: \(underlyingError.localizedDescription)"
-                }
-            } else {
-                ocrResult = "❌ Error: \(error.localizedDescription)"
-            }
+            ocrResult = "❌ Error: \(error.localizedDescription)"
         }
         
         isProcessing = false
