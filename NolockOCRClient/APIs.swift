@@ -12,7 +12,25 @@ open class NolockOCRClientAPI {
     public static var basePath = "http://localhost"
     public static var customHeaders: [String: String] = [:]
     public static var credential: URLCredential?
-    public static var requestBuilderFactory: RequestBuilderFactory = URLSessionRequestBuilderFactory()
+
+    // Automatically configure authentication for iOS/macOS apps
+    public static var requestBuilderFactory: RequestBuilderFactory = {
+        #if canImport(StoreKit)
+        if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
+            // Automatically use StoreKit authentication for iOS/macOS apps
+            let provider = StoreKitAuthenticationProvider()
+            let factory = AuthenticatedRequestBuilderFactory(
+                authProvider: provider,
+                authConfiguration: .default
+            )
+            print("[NolockOCRClient] Automatic StoreKit authentication enabled - drop-in replacement active")
+            return factory
+        }
+        #endif
+        // Fallback to standard factory for older platforms
+        return URLSessionRequestBuilderFactory()
+    }()
+
     public static var apiResponseQueue: DispatchQueue = .main
 
     // MARK: - Authentication Configuration
