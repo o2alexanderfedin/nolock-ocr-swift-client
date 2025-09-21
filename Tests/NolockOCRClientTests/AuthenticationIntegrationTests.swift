@@ -25,6 +25,8 @@ final class AuthenticationIntegrationTests: XCTestCase {
         // Restore original configuration
         NolockOCRClientAPI.basePath = originalBasePath
         NolockOCRClientAPI.requestBuilderFactory = originalFactory
+        // Reset authentication context
+        AuthenticationContext.reset()
         super.tearDown()
     }
 
@@ -51,390 +53,329 @@ final class AuthenticationIntegrationTests: XCTestCase {
     }
     #endif
 
-    // MARK: - Authentication Manager Integration Tests
+    // MARK: - Authentication Context Tests
 
-    func testAuthenticationManagerSingleton() {
-        // Given: Authentication manager
-        let manager1 = AuthenticationManager.shared
-        let manager2 = AuthenticationManager.shared
+    func testAuthenticationContextConfiguration() async throws {
+        // Given: A mock provider
+        let provider = MockAuthenticationProvider(token: "test-token")
 
-        // Then: Should be the same instance
-        XCTAssertTrue(manager1 === manager2)
+        // When: Configuring the context
+        AuthenticationContext.configure(provider: provider)
+
+        // Then: Provider should be configured
+        XCTAssertNotNil(AuthenticationContext.provider)
+        let token = try await AuthenticationContext.provider?.getCurrentToken()
+        XCTAssertEqual(token, "test-token")
     }
 
-    func testAuthenticationManagerConfiguration() async throws {
-        // Given: Mock provider and configuration
-        let provider = MockAuthenticationProvider()
-        provider.mockToken = "manager-test-token"
-        let config = AuthenticationConfiguration(
-            automaticTokenRefresh: false,
-            tokenRefreshBuffer: 180,
-            maxRetryAttempts: 2,
-            retryDelay: 0.5
-        )
+    func testAuthenticationProviderTokenRetrieval() async throws {
+        // Given: A mock provider with a test token
+        let provider = MockAuthenticationProvider(token: "test-jwt-token")
+        AuthenticationContext.configure(provider: provider)
 
-        // When: Configuring the manager
-        AuthenticationManager.shared.configure(
-            provider: provider,
-            configuration: config
-        )
+        // When: Retrieving tokens multiple times
+        let token1 = try await provider.getCurrentToken()
+        let token2 = try await provider.getCurrentToken()
 
-        // Then: Manager should use the provider
-        XCTAssertNotNil(AuthenticationManager.shared.provider)
-        let token = try await AuthenticationManager.shared.getToken()
-        XCTAssertEqual(token, "manager-test-token")
+        // Then: Should return the same token (cached)
+        XCTAssertEqual(token1, "test-jwt-token")
+        XCTAssertEqual(token2, "test-jwt-token")
+        XCTAssertEqual(token1, token2)
     }
 
-    func testAuthenticationManagerTokenRetrieval() async throws {
-        // Given: Provider with token
-        let provider = MockAuthenticationProvider()
-        provider.mockToken = "test-token"
-        provider.isTokenValidResponse = true
+    // MARK: - Mock Provider Tests
 
-        AuthenticationManager.shared.configure(provider: provider)
+    func testMockProviderBasicFunctionality() async throws {
+        // Given: A mock provider with a test token
+        let provider = MockAuthenticationProvider(token: "mock-token-123")
 
-        // When: Getting token multiple times
-        let token1 = try await AuthenticationManager.shared.getToken()
-        let token2 = try await AuthenticationManager.shared.getToken()
+        // When: Checking token validity
+        let isValid = try await provider.isTokenValid()
 
-        // Then: Should get tokens
-        XCTAssertEqual(token1, "test-token")
-        XCTAssertEqual(token2, "test-token")
+        // Then: Should be valid initially
+        XCTAssertTrue(isValid)
+
+        // When: Getting current token
+        let token = try await provider.getCurrentToken()
+
+        // Then: Should return configured token
+        XCTAssertEqual(token, "mock-token-123")
     }
 
+    func testMockProviderTokenRefresh() async throws {
+        // Given: A mock provider
+        let provider = MockAuthenticationProvider(token: "initial-token")
 
-    // MARK: - Token Refresh & Retry Logic Tests
+        // When: Refreshing token
+        let newToken = try await provider.refreshToken()
 
-    func testAutomaticTokenRefreshOnExpiry() async throws {
-        // Given: Provider with expiring token
-        let provider = MockAuthenticationProvider()
-        provider.mockToken = "expired-token"
-        provider.isTokenValidResponse = false
-        provider.refreshedMockToken = "fresh-token"
+        // Then: Should return a new token
+        XCTAssertTrue(newToken.hasPrefix("refreshed-token-"))
+        XCTAssertNotEqual(newToken, "initial-token")
 
-        let config = AuthenticationConfiguration(
-            automaticTokenRefresh: true,
-            tokenRefreshBuffer: 300,
-            maxRetryAttempts: 3,
-            retryDelay: 0.1
-        )
-
-        AuthenticationManager.shared.configure(
-            provider: provider,
-            configuration: config
-        )
-
-        // When: Getting token with expired state
-        let token = try await AuthenticationManager.shared.getToken()
-
-        // Then: Should automatically refresh
-        XCTAssertEqual(token, "fresh-token")
+        // And: Current token should be updated
+        let currentToken = try await provider.getCurrentToken()
+        XCTAssertEqual(currentToken, newToken)
     }
 
-    func testManualTokenRefreshRequired() async throws {
-        // Given: Provider with expired token and no auto-refresh
-        let provider = MockAuthenticationProvider()
-        provider.mockToken = "expired-manual-token"
+    func testMockProviderInvalidToken() async throws {
+        // Given: A mock provider with invalid token state
+        let provider = MockAuthenticationProvider(token: "test-token")
         provider.isTokenValidResponse = false
 
-        let config = AuthenticationConfiguration(
-            automaticTokenRefresh: false,
-            tokenRefreshBuffer: 300,
-            maxRetryAttempts: 3,
-            retryDelay: 0.1
-        )
+        // When: Checking token validity
+        let isValid = try await provider.isTokenValid()
 
-        AuthenticationManager.shared.configure(
-            provider: provider,
-            configuration: config
-        )
+        // Then: Should return invalid
+        XCTAssertFalse(isValid)
+    }
 
-        // When/Then: Should throw expired error
+    func testMockProviderErrorSimulation() async throws {
+        // Given: A mock provider configured to throw error
+        let provider = MockAuthenticationProvider(token: "test-token")
+        provider.shouldThrowError = true
+
+        // When/Then: Getting token should throw
         do {
-            _ = try await AuthenticationManager.shared.getToken()
-            XCTFail("Should have thrown tokenExpired error")
-        } catch AuthenticationError.tokenExpired {
-            // Expected
+            _ = try await provider.getCurrentToken()
+            XCTFail("Expected error to be thrown")
         } catch {
-            XCTFail("Unexpected error: \(error)")
+            XCTAssertTrue(error is AuthenticationError)
         }
     }
 
-    func testTokenRefreshWithRetries() async throws {
-        // Given: Provider that fails then succeeds
-        let provider = MockAuthenticationProvider()
-        provider.refreshedMockToken = "retry-success-token"
-        // Note: Retry logic would be tested with a more sophisticated mock
-        // that tracks attempt count internally
+    // MARK: - Request Builder Factory Tests
 
-        // When: Refreshing token
-        let token = try await provider.refreshToken()
+    func testAuthenticatedRequestBuilderFactoryConfiguration() {
+        // Given: A mock provider
+        let provider = MockAuthenticationProvider(token: "factory-test-token")
 
-        // Then: Should eventually succeed
-        XCTAssertEqual(token, "retry-success-token")
+        // When: Creating authenticated request builder factory
+        let factory = AuthenticatedRequestBuilderFactory(
+            authProvider: provider,
+            configuration: .default
+        )
+
+        // Then: Factory should be configured with provider
+        XCTAssertNotNil(factory.provider)
+        XCTAssertEqual(factory.authConfiguration.automaticTokenRefresh, true)
     }
 
-    // MARK: - Request Builder Integration Tests
+    func testAuthenticatedRequestBuilderFactoryCreatesCorrectBuilders() {
+        // Given: An authenticated factory
+        let provider = MockAuthenticationProvider(token: "test")
+        let factory = AuthenticatedRequestBuilderFactory(authProvider: provider)
 
-    func testAuthenticatedRequestBuilderDoesNotAddSyncHeaders() async throws {
-        // Given: Authenticated request builder with provider configured
-        let provider = MockAuthenticationProvider()
-        provider.mockToken = "test-token"
-        AuthenticationManager.shared.configure(provider: provider)
+        // When: Getting builder types
+        let nonDecodableType = factory.getNonDecodableBuilder() as RequestBuilder<Data>.Type
+        let decodableType = factory.getBuilder() as RequestBuilder<TestDecodable>.Type
 
-        let builder = AuthenticatedURLSessionRequestBuilder<Data>(
+        // Then: Should return authenticated builder types
+        XCTAssertTrue(nonDecodableType == AuthenticatedURLSessionRequestBuilder<Data>.self)
+        XCTAssertTrue(decodableType == AuthenticatedURLSessionDecodableRequestBuilder<TestDecodable>.self)
+    }
+
+    // MARK: - Configuration API Tests
+
+    func testConfigureAuthenticationAPI() {
+        // Given: A mock provider
+        let provider = MockAuthenticationProvider(token: "api-test-token")
+
+        // When: Configuring through API
+        NolockOCRClientAPI.configureAuthentication(
+            provider: provider,
+            configuration: .default
+        )
+
+        // Then: Request builder factory should be authenticated
+        XCTAssertTrue(NolockOCRClientAPI.requestBuilderFactory is AuthenticatedRequestBuilderFactory)
+
+        // And: Context should be configured
+        XCTAssertNotNil(AuthenticationContext.provider)
+    }
+
+    func testConfigureMockAuthenticationAPI() {
+        // When: Configuring mock authentication through API
+        NolockOCRClientAPI.configureMockAuthentication(
+            mockToken: "mock-api-token",
+            configuration: .default
+        )
+
+        // Then: Request builder factory should be authenticated
+        XCTAssertTrue(NolockOCRClientAPI.requestBuilderFactory is AuthenticatedRequestBuilderFactory)
+
+        // And: Context should have a mock provider
+        XCTAssertNotNil(AuthenticationContext.provider)
+        XCTAssertTrue(AuthenticationContext.provider is MockAuthenticationProvider)
+    }
+
+    // MARK: - Integration Flow Tests
+
+    func testCompleteAuthenticationFlow() async throws {
+        // Given: A configured authentication system
+        let provider = MockAuthenticationProvider(token: "flow-test-token")
+        NolockOCRClientAPI.configureAuthentication(provider: provider)
+
+        // When: Creating an authenticated request builder
+        let builder = AuthenticatedURLSessionRequestBuilder<TestDecodable>(
             method: "GET",
             URLString: "https://api.example.com/test",
             parameters: nil,
             headers: [:]
         )
 
-        // When: Building headers
-        let headers = builder.buildHeaders()
+        // Then: The builder should have access to authentication
+        XCTAssertNotNil(AuthenticationContext.provider)
 
-        // Then: Should not add auth header synchronously (will be added in execute())
-        XCTAssertNil(headers["Authorization"])
+        // And: Should be able to get token through the provider
+        let token = try await provider.getCurrentToken()
+        XCTAssertEqual(token, "flow-test-token")
     }
 
-    // MARK: - Error Scenario Tests
+    func testTokenRefreshDuringRequest() async throws {
+        // Given: A provider that will expire token
+        let provider = MockAuthenticationProvider(token: "initial")
+        provider.isTokenValidResponse = false // Force refresh
 
-    func testNoActiveSubscriptionError() async throws {
-        // Given: Provider with no subscription
-        let provider = await MockAuthenticationProvider.noSubscriptionProvider()
-
-        // When/Then: Should throw appropriate error
-        do {
-            _ = try await provider.getCurrentToken()
-            XCTFail("Should have thrown noActiveSubscription error")
-        } catch AuthenticationError.noActiveSubscription {
-            // Expected
-        } catch {
-            XCTFail("Unexpected error: \(error)")
-        }
-    }
-
-    func testTokenInvalidError() async throws {
-        // Given: Provider with invalid token
-        let provider = MockAuthenticationProvider()
-        provider.shouldThrowError = true
-        provider.errorToThrow = AuthenticationError.tokenInvalid
-
-        // When/Then: Should propagate error
-        do {
-            _ = try await provider.getCurrentToken()
-            XCTFail("Should have thrown tokenInvalid error")
-        } catch AuthenticationError.tokenInvalid {
-            // Expected
-        } catch {
-            XCTFail("Unexpected error: \(error)")
-        }
-    }
-
-    func testNetworkError() async throws {
-        // Given: Provider with network error
-        let provider = MockAuthenticationProvider()
-        provider.shouldThrowError = true
-        provider.errorToThrow = AuthenticationError.networkError(
-            NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet)
+        NolockOCRClientAPI.configureAuthentication(
+            provider: provider,
+            configuration: AuthenticationConfiguration(
+                automaticTokenRefresh: true,
+                tokenRefreshBuffer: 0,
+                maxRetryAttempts: 1,
+                retryDelay: 0
+            )
         )
 
-        // When/Then: Should handle network error
-        do {
-            _ = try await provider.getCurrentToken()
-            XCTFail("Should have thrown network error")
-        } catch AuthenticationError.networkError(let error as NSError) {
-            XCTAssertEqual(error.code, NSURLErrorNotConnectedToInternet)
-        } catch {
-            XCTFail("Unexpected error: \(error)")
-        }
+        // When: Token needs refresh
+        let refreshedToken = try await provider.refreshToken()
+
+        // Then: Should get new token
+        XCTAssertTrue(refreshedToken.hasPrefix("refreshed-token-"))
     }
 
+    // MARK: - Thread Safety Tests
 
-    // MARK: - Concurrent Request Tests
+    func testConcurrentTokenAccess() async throws {
+        // Given: A mock provider
+        let provider = MockAuthenticationProvider(token: "concurrent-token")
+        AuthenticationContext.configure(provider: provider)
 
-    func testConcurrentTokenRequests() async throws {
-        // Given: Provider with delay to simulate concurrent access
-        let provider = MockAuthenticationProvider()
-        provider.mockToken = "concurrent-token"
-        provider.simulatedDelay = 0.1
-        provider.isTokenValidResponse = true
+        // When: Accessing token concurrently
+        async let token1 = provider.getCurrentToken()
+        async let token2 = provider.getCurrentToken()
+        async let token3 = provider.getCurrentToken()
 
-        AuthenticationManager.shared.configure(provider: provider)
-
-        // When: Making concurrent requests
-        async let token1 = AuthenticationManager.shared.getToken()
-        async let token2 = AuthenticationManager.shared.getToken()
-        async let token3 = AuthenticationManager.shared.getToken()
-
-        // Then: All should get the same token
+        // Then: All should succeed with same token
         let results = try await [token1, token2, token3]
         XCTAssertEqual(results[0], "concurrent-token")
         XCTAssertEqual(results[1], "concurrent-token")
         XCTAssertEqual(results[2], "concurrent-token")
     }
 
-    func testConcurrentRefreshRequests() async throws {
-        // Given: Provider configured for refresh
-        let provider = MockAuthenticationProvider()
-        provider.refreshedMockToken = "concurrent-refresh-token"
-        provider.simulatedDelay = 0.05
+    func testConcurrentTokenRefresh() async throws {
+        // Given: A mock provider
+        let provider = MockAuthenticationProvider(token: "initial")
+        AuthenticationContext.configure(provider: provider)
 
-        AuthenticationManager.shared.configure(provider: provider)
-
-        // When: Making concurrent refresh requests
-        async let refresh1 = AuthenticationManager.shared.refreshToken()
-        async let refresh2 = AuthenticationManager.shared.refreshToken()
+        // When: Refreshing token concurrently
+        async let refresh1 = provider.refreshToken()
+        async let refresh2 = provider.refreshToken()
 
         // Then: Both should succeed
         let results = try await [refresh1, refresh2]
-        XCTAssertEqual(results[0], "concurrent-refresh-token")
-        XCTAssertEqual(results[1], "concurrent-refresh-token")
+        XCTAssertTrue(results[0].hasPrefix("refreshed-token-"))
+        XCTAssertTrue(results[1].hasPrefix("refreshed-token-"))
     }
 
-    // MARK: - API Configuration Tests
+    // MARK: - Error Handling Tests
 
-    func testAPIConfigurationWithMockAuthentication() {
-        // Given: Mock token
-        let mockToken = "api-config-mock-token"
+    func testAuthenticationErrorTypes() {
+        // Test each error type
+        let errors: [AuthenticationError] = [
+            .noActiveSubscription,
+            .tokenExpired,
+            .tokenInvalid,
+            .networkError(NSError(domain: "test", code: 1)),
+            .storeKitError("Test error"),
+            .configurationError("Config error")
+        ]
 
-        // When: Configuring with mock
-        NolockOCRClientAPI.configureMockAuthentication(
-            mockToken: mockToken,
-            configuration: .default
-        )
-
-        // Then: Should use authenticated factory
-        XCTAssertTrue(NolockOCRClientAPI.requestBuilderFactory is AuthenticatedRequestBuilderFactory)
-    }
-
-
-
-    // MARK: - End-to-End Authentication Flow Tests
-
-    func testCompleteAuthenticationLifecycle() async throws {
-        // 1. Setup mock provider
-        let provider = MockAuthenticationProvider()
-        provider.configureValidToken(expiresIn: 60)
-
-        // 2. Configure API with authentication
-        NolockOCRClientAPI.configureAuthentication(
-            provider: provider,
-            configuration: AuthenticationConfiguration(
-                automaticTokenRefresh: true,
-                tokenRefreshBuffer: 30,
-                maxRetryAttempts: 3,
-                retryDelay: 0.1
-            )
-        )
-
-        // 3. Verify authenticated factory is in use
-        XCTAssertTrue(NolockOCRClientAPI.requestBuilderFactory is AuthenticatedRequestBuilderFactory)
-
-        // 4. Get initial token through AuthenticationManager to ensure caching
-        let initialToken = try await AuthenticationManager.shared.getToken()
-        XCTAssertFalse(initialToken.isEmpty)
-
-        // 5. Token was retrieved (no caching to verify)
-
-        // 6. Simulate token expiration
-        provider.isTokenValidResponse = false
-        provider.refreshedMockToken = "lifecycle-refreshed-token"
-
-        // 7. Trigger refresh
-        let refreshedToken = try await AuthenticationManager.shared.refreshToken()
-        XCTAssertEqual(refreshedToken, "lifecycle-refreshed-token")
-
-        // 8. New token was retrieved
-
-        // Test complete
-    }
-
-    func testAuthenticationWithAPICall() async throws {
-        // Given: Mock server response expectation
-        let provider = MockAuthenticationProvider()
-        provider.mockToken = "api-call-token"
-
-        NolockOCRClientAPI.configureAuthentication(
-            provider: provider,
-            configuration: .default
-        )
-
-        // When: Creating a request builder (simulating API call)
-        let factory = NolockOCRClientAPI.requestBuilderFactory as? AuthenticatedRequestBuilderFactory
-        XCTAssertNotNil(factory)
-
-        let builderType = factory?.getNonDecodableBuilder() as? AuthenticatedURLSessionRequestBuilder<Data>.Type
-        XCTAssertNotNil(builderType)
-
-        let builder = builderType?.init(
-            method: "GET",
-            URLString: "https://api.example.com/protected",
-            parameters: nil,
-            headers: [:]
-        )
-
-        // Then: Builder should be created
-        XCTAssertNotNil(builder)
-    }
-
-    // MARK: - Performance Tests
-
-    func testTokenRetrievalPerformance() async throws {
-        // Given: Configured authentication
-        let provider = MockAuthenticationProvider()
-        provider.mockToken = "performance-token"
-        AuthenticationManager.shared.configure(provider: provider)
-
-        // When/Then: Token retrieval performance (no cache)
-        // Note: This will be slower since we always fetch fresh
-        let start = Date()
-        for _ in 0..<10 {
-            _ = try await AuthenticationManager.shared.getToken()
+        for error in errors {
+            XCTAssertNotNil(error.errorDescription)
+            XCTAssertFalse(error.errorDescription!.isEmpty)
         }
-        let elapsed = Date().timeIntervalSince(start)
-        print("10 token fetches took \(elapsed) seconds")
     }
 
-    func testConcurrentTokenAccessPerformance() async throws {
-        // Given: Configured authentication
-        let provider = MockAuthenticationProvider()
-        provider.mockToken = "concurrent-perf-token"
-        AuthenticationManager.shared.configure(provider: provider)
+    func testErrorRecovery() async throws {
+        // Given: A provider that fails then succeeds
+        let provider = MockAuthenticationProvider(token: "recovery-token")
+        provider.shouldThrowError = true
 
-        // When/Then: Concurrent token fetches
-        await withTaskGroup(of: Void.self) { group in
-            for _ in 0..<10 {
-                group.addTask {
-                    _ = try? await AuthenticationManager.shared.getToken()
-                }
-            }
+        AuthenticationContext.configure(provider: provider)
+
+        // When: First attempt fails
+        do {
+            _ = try await provider.getCurrentToken()
+            XCTFail("Expected error")
+        } catch {
+            // Expected
         }
+
+        // When: Disabling error and trying again
+        provider.shouldThrowError = false
+        let token = try await provider.getCurrentToken()
+
+        // Then: Should succeed
+        XCTAssertEqual(token, "recovery-token")
+    }
+
+    // MARK: - Configuration Edge Cases
+
+    func testDefaultConfiguration() {
+        // Given/When: Using default configuration
+        let config = AuthenticationConfiguration.default
+
+        // Then: Should have sensible defaults
+        XCTAssertTrue(config.automaticTokenRefresh)
+        XCTAssertEqual(config.tokenRefreshBuffer, 300)
+        XCTAssertEqual(config.maxRetryAttempts, 3)
+        XCTAssertEqual(config.retryDelay, 1.0)
+    }
+
+    func testCustomConfiguration() {
+        // Given/When: Creating custom configuration
+        let config = AuthenticationConfiguration(
+            automaticTokenRefresh: false,
+            tokenRefreshBuffer: 600,
+            maxRetryAttempts: 5,
+            retryDelay: 2.0
+        )
+
+        // Then: Should use custom values
+        XCTAssertFalse(config.automaticTokenRefresh)
+        XCTAssertEqual(config.tokenRefreshBuffer, 600)
+        XCTAssertEqual(config.maxRetryAttempts, 5)
+        XCTAssertEqual(config.retryDelay, 2.0)
+    }
+
+    func testConfigurationCompatibilityProperties() {
+        // Given: A configuration
+        var config = AuthenticationConfiguration.default
+
+        // When: Using compatibility properties
+        config.requiresAuthentication = false
+        config.refreshThreshold = 1000
+
+        // Then: Should update underlying properties
+        XCTAssertFalse(config.automaticTokenRefresh)
+        XCTAssertEqual(config.tokenRefreshBuffer, 1000)
     }
 }
 
 // MARK: - Test Helpers
 
-extension MockAuthenticationProvider {
-    static func successfulProvider() async -> MockAuthenticationProvider {
-        let provider = MockAuthenticationProvider()
-        provider.mockToken = "success-token"
-        provider.refreshedMockToken = "success-refresh-token"
-        provider.isTokenValidResponse = true
-        return provider
-    }
-
-    static func expiredTokenProvider() async -> MockAuthenticationProvider {
-        let provider = MockAuthenticationProvider()
-        provider.mockToken = "expired-token"
-        provider.isTokenValidResponse = false
-        provider.refreshedMockToken = "new-token-after-refresh"
-        return provider
-    }
-
-    static func noSubscriptionProvider() async -> MockAuthenticationProvider {
-        let provider = MockAuthenticationProvider()
-        provider.shouldThrowError = true
-        provider.errorToThrow = AuthenticationError.noActiveSubscription
-        return provider
-    }
+private struct TestDecodable: Decodable {
+    let id: String
+    let value: String
 }

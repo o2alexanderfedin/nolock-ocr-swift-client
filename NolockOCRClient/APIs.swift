@@ -49,13 +49,8 @@ open class NolockOCRClientAPI {
             productIdentifiers: productIdentifiers
         )
 
-        // Configure the authentication manager
-        AuthenticationManager.shared.configure(
-            provider: provider,
-            configuration: configuration
-        )
-
         // Switch to authenticated request builder factory
+        // The factory will set the global context for builders
         requestBuilderFactory = AuthenticatedRequestBuilderFactory(
             authProvider: provider,
             configuration: configuration
@@ -72,13 +67,8 @@ open class NolockOCRClientAPI {
     ) {
         let provider = MockAuthenticationProvider(token: mockToken)
 
-        // Configure the authentication manager
-        AuthenticationManager.shared.configure(
-            provider: provider,
-            configuration: configuration
-        )
-
         // Switch to authenticated request builder factory
+        // The factory will set the global context for builders
         requestBuilderFactory = AuthenticatedRequestBuilderFactory(
             authProvider: provider,
             configuration: configuration
@@ -93,13 +83,8 @@ open class NolockOCRClientAPI {
         provider: AuthenticationProvider,
         configuration: AuthenticationConfiguration = .default
     ) {
-        // Configure the authentication manager
-        AuthenticationManager.shared.configure(
-            provider: provider,
-            configuration: configuration
-        )
-
         // Switch to authenticated request builder factory
+        // The factory will set the global context for builders
         requestBuilderFactory = AuthenticatedRequestBuilderFactory(
             authProvider: provider,
             configuration: configuration

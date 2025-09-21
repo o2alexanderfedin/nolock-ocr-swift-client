@@ -3,6 +3,28 @@ import Foundation
 import FoundationNetworking
 #endif
 
+/// Storage for the current authentication context
+public struct AuthenticationContext {
+    /// The current authentication provider
+    public static var provider: AuthenticationProvider?
+
+    /// The current authentication configuration
+    public static var configuration: AuthenticationConfiguration = .default
+
+    /// Configure the authentication context
+    public static func configure(provider: AuthenticationProvider,
+                                 configuration: AuthenticationConfiguration = .default) {
+        self.provider = provider
+        self.configuration = configuration
+    }
+
+    /// Reset to defaults
+    public static func reset() {
+        provider = nil
+        configuration = .default
+    }
+}
+
 /// Factory for creating authenticated request builders
 public class AuthenticatedRequestBuilderFactory: RequestBuilderFactory {
 
@@ -36,6 +58,9 @@ public class AuthenticatedRequestBuilderFactory: RequestBuilderFactory {
                 configuration: AuthenticationConfiguration = .default) {
         self.authProvider = authProvider
         self.configuration = configuration
+
+        // Set the global context for the builders
+        AuthenticationContext.configure(provider: authProvider, configuration: configuration)
     }
 
     // MARK: - RequestBuilderFactory Protocol
@@ -54,14 +79,14 @@ open class AuthenticatedURLSessionRequestBuilder<T>: URLSessionRequestBuilder<T>
 
     // MARK: - Properties
 
-    /// Shared authentication manager instance
-    private var authManager: AuthenticationManager {
-        return AuthenticationManager.shared
+    /// The authentication provider (from context or injected)
+    private var authProvider: AuthenticationProvider? {
+        return AuthenticationContext.provider
     }
 
-    /// Public accessor for the authentication manager (for testing)
-    public var authenticationManager: AuthenticationManager {
-        return authManager
+    /// Configuration for authentication (from context)
+    private var configuration: AuthenticationConfiguration {
+        return AuthenticationContext.configuration
     }
 
     // MARK: - Overrides
@@ -69,48 +94,83 @@ open class AuthenticatedURLSessionRequestBuilder<T>: URLSessionRequestBuilder<T>
     override open func execute(_ apiResponseQueue: DispatchQueue = NolockOCRClientAPI.apiResponseQueue,
                               _ completion: @escaping (_ result: Swift.Result<Response<T>, ErrorResponse>) -> Void) -> RequestTask {
 
-        // Always fetch and add authentication token
         let requestTask = RequestTask()
+
+        // Check if we have an auth provider
+        guard let provider = authProvider else {
+            // No auth provider, execute without authentication
+            return super.execute(apiResponseQueue, completion)
+        }
 
         if #available(iOS 13.0, macOS 10.15, *) {
             Task {
-            do {
-                // Get fresh token
-                let token = try await authManager.getToken()
-
-                // Update headers with token
-                var updatedHeaders = headers
-                updatedHeaders["Authorization"] = "Bearer \(token)"
-
-                // Create new request builder with updated headers
-                let authenticatedBuilder = AuthenticatedURLSessionRequestBuilder<T>(
-                    method: method,
-                    URLString: URLString,
-                    parameters: parameters,
-                    headers: updatedHeaders
-                )
-
-                // Execute the authenticated request
-                _ = authenticatedBuilder.executeWithRetry(apiResponseQueue, completion)
-
-            } catch {
-                // Execute anyway to get the actual server error response
-                _ = super.execute(apiResponseQueue, completion)
+                await executeWithAuth(provider: provider, apiResponseQueue, completion)
             }
-        }
         } else {
-            // Fallback for older OS versions
+            // Fallback for older OS versions - no authentication
             _ = super.execute(apiResponseQueue, completion)
         }
 
         return requestTask
     }
 
-    /// Executes the request with retry logic for 401 responses
-    private func executeWithRetry(_ apiResponseQueue: DispatchQueue = NolockOCRClientAPI.apiResponseQueue,
-                                  _ completion: @escaping (_ result: Swift.Result<Response<T>, ErrorResponse>) -> Void) -> RequestTask {
+    // MARK: - Private Methods
 
-        return super.execute(apiResponseQueue) { [weak self] result in
+    /// Executes the request with authentication
+    @available(iOS 13.0, macOS 10.15, *)
+    private func executeWithAuth(provider: AuthenticationProvider,
+                                 _ apiResponseQueue: DispatchQueue,
+                                 _ completion: @escaping (_ result: Swift.Result<Response<T>, ErrorResponse>) -> Void) async {
+        do {
+            // Get token directly from provider
+            let token = try await getValidToken(from: provider)
+
+            // Update headers with token
+            var updatedHeaders = headers
+            updatedHeaders["Authorization"] = "Bearer \(token)"
+
+            // Create new builder with auth headers
+            let authenticatedBuilder = AuthenticatedURLSessionRequestBuilder<T>(
+                method: method,
+                URLString: URLString,
+                parameters: parameters,
+                headers: updatedHeaders
+            )
+
+            // Execute request with retry logic for 401
+            authenticatedBuilder.executeWithRetry(provider: provider,
+                                                 apiResponseQueue,
+                                                 completion,
+                                                 retryCount: 0)
+
+        } catch {
+            // If we can't get a token, execute anyway to get server error
+            _ = super.execute(apiResponseQueue, completion)
+        }
+    }
+
+    /// Gets a valid token, refreshing if needed
+    @available(iOS 13.0, macOS 10.15, *)
+    private func getValidToken(from provider: AuthenticationProvider) async throws -> String {
+        // Check if current token is valid
+        let isValid = try await provider.isTokenValid()
+
+        if isValid {
+            return try await provider.getCurrentToken()
+        } else if configuration.automaticTokenRefresh {
+            return try await provider.refreshToken()
+        } else {
+            throw AuthenticationError.tokenExpired
+        }
+    }
+
+    /// Executes the request with retry logic for 401 responses
+    private func executeWithRetry(provider: AuthenticationProvider,
+                                  _ apiResponseQueue: DispatchQueue,
+                                  _ completion: @escaping (_ result: Swift.Result<Response<T>, ErrorResponse>) -> Void,
+                                  retryCount: Int) {
+
+        super.execute(apiResponseQueue) { [weak self] result in
             guard let self = self else {
                 completion(result)
                 return
@@ -118,44 +178,49 @@ open class AuthenticatedURLSessionRequestBuilder<T>: URLSessionRequestBuilder<T>
 
             switch result {
             case .failure(let errorResponse):
-                // Check if it's a 401 Unauthorized
+                // Check if it's a 401 Unauthorized and we haven't exceeded retry attempts
                 if case .error(let statusCode, _, _, _) = errorResponse,
-                   statusCode == 401 {
+                   statusCode == 401,
+                   retryCount < self.configuration.maxRetryAttempts {
+
                     // Attempt token refresh
                     if #available(iOS 13.0, macOS 10.15, *) {
                         Task {
-                        do {
-                            // Refresh the token
-                            let newToken = try await self.authManager.refreshToken()
+                            do {
+                                // Refresh the token directly
+                                let newToken = try await provider.refreshToken()
 
-                            // Update headers with new token
-                            var updatedHeaders = self.headers
-                            updatedHeaders["Authorization"] = "Bearer \(newToken)"
+                                // Update headers with new token
+                                var updatedHeaders = self.headers
+                                updatedHeaders["Authorization"] = "Bearer \(newToken)"
 
-                            // Create new request with refreshed token
-                            let retryBuilder = AuthenticatedURLSessionRequestBuilder<T>(
-                                method: self.method,
-                                URLString: self.URLString,
-                                parameters: self.parameters,
-                                headers: updatedHeaders
-                            )
+                                // Create new builder with refreshed token
+                                let retryBuilder = AuthenticatedURLSessionRequestBuilder<T>(
+                                    method: self.method,
+                                    URLString: self.URLString,
+                                    parameters: self.parameters,
+                                    headers: updatedHeaders
+                                )
 
-                            // Execute retry (without further retry to avoid infinite loop)
-                            _ = retryBuilder.executeWithRetry(apiResponseQueue, completion)
+                                // Retry request with new token
+                                retryBuilder.executeWithRetry(provider: provider,
+                                                             apiResponseQueue,
+                                                             completion,
+                                                             retryCount: retryCount + 1)
 
-                        } catch {
-                            // Token refresh failed, return original 401 error with server's response
-                            apiResponseQueue.async {
-                                completion(result)
+                            } catch {
+                                // Token refresh failed, return original 401 error
+                                apiResponseQueue.async {
+                                    completion(result)
+                                }
                             }
                         }
-                    }
                     } else {
-                        // Fallback for older OS versions
+                        // No async/await support, can't refresh
                         completion(result)
                     }
                 } else {
-                    // Not a 401 or doesn't require auth, pass through
+                    // Not a 401, max retries exceeded, or no auth required
                     completion(result)
                 }
 
@@ -171,92 +236,4 @@ open class AuthenticatedURLSessionRequestBuilder<T>: URLSessionRequestBuilder<T>
 open class AuthenticatedURLSessionDecodableRequestBuilder<T: Decodable>: AuthenticatedURLSessionRequestBuilder<T> {
     // Inherits all authentication behavior from parent class
     // Decodable-specific logic is handled by URLSessionDecodableRequestBuilder
-}
-
-/// Singleton manager for authentication state
-public class AuthenticationManager {
-
-    // MARK: - Singleton
-
-    public static let shared = AuthenticationManager()
-
-    // MARK: - Properties
-
-    /// The current authentication provider
-    private var authProvider: AuthenticationProvider?
-
-    /// Configuration for authentication
-    private var configuration: AuthenticationConfiguration
-
-    /// Lock for thread-safe access
-    private let lock = NSLock()
-
-    // MARK: - Initialization
-
-    private init() {
-        self.configuration = .default
-    }
-
-    // MARK: - Configuration
-
-    /// Configures the authentication manager
-    /// - Parameters:
-    ///   - provider: The authentication provider to use
-    ///   - configuration: Authentication configuration
-    public func configure(provider: AuthenticationProvider,
-                         configuration: AuthenticationConfiguration = .default) {
-        lock.lock()
-        defer { lock.unlock() }
-
-        self.authProvider = provider
-        self.configuration = configuration
-    }
-
-    /// The current authentication provider (for testing)
-    public var provider: AuthenticationProvider? {
-        lock.lock()
-        defer { lock.unlock() }
-        return authProvider
-    }
-
-    // MARK: - Token Management
-
-    /// Gets a valid authentication token
-    /// - Returns: A valid authentication token
-    /// - Throws: AuthenticationError if token cannot be obtained
-    public func getToken() async throws -> String {
-        // Get provider
-        guard let provider = authProvider else {
-            throw AuthenticationError.configurationError("No authentication provider configured")
-        }
-
-        // Check if current token is valid
-        let isValid = try await provider.isTokenValid()
-
-        let token: String
-        if isValid {
-            // Get current token
-            token = try await provider.getCurrentToken()
-        } else if configuration.automaticTokenRefresh {
-            // Refresh token
-            token = try await provider.refreshToken()
-        } else {
-            // Manual refresh required
-            throw AuthenticationError.tokenExpired
-        }
-
-        return token
-    }
-
-    /// Refreshes the authentication token
-    /// - Returns: The new authentication token
-    /// - Throws: AuthenticationError if token cannot be refreshed
-    public func refreshToken() async throws -> String {
-        guard let provider = authProvider else {
-            throw AuthenticationError.configurationError("No authentication provider configured")
-        }
-
-        return try await provider.refreshToken()
-    }
-
 }

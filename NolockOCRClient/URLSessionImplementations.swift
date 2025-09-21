@@ -8,6 +8,7 @@ import Foundation
 #if !os(macOS)
 import MobileCoreServices
 #endif
+import AnyCodable
 #if canImport(UniformTypeIdentifiers)
 import UniformTypeIdentifiers
 #endif
@@ -209,11 +210,25 @@ open class URLSessionRequestBuilder<T>: RequestBuilder<T> {
 
         switch T.self {
         case is Void.Type:
-
             completion(.success(Response(response: httpResponse, body: () as! T, bodyData: data)))
 
+        case is Data.Type:
+            completion(.success(Response(response: httpResponse, body: data as! T, bodyData: data)))
+
+        case is AnyCodable.Type:
+            // For AnyCodable, we need to decode the JSON
+            do {
+                let decoded = try JSONDecoder().decode(AnyCodable.self, from: data ?? Data())
+                completion(.success(Response(response: httpResponse, body: decoded as! T, bodyData: data)))
+            } catch {
+                completion(.failure(ErrorResponse.error(httpResponse.statusCode, data, response, error)))
+            }
+
         default:
-            fatalError("Unsupported Response Body Type - \(String(describing: T.self))")
+            // For other types, this base class can't handle them
+            // The decodable subclass should handle these
+            completion(.failure(ErrorResponse.error(httpResponse.statusCode, data, response,
+                DecodableRequestBuilderError.generalError(NSError(domain: "", code: httpResponse.statusCode, userInfo: nil)))))
         }
 
     }
