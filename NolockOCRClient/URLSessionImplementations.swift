@@ -71,8 +71,8 @@ open class URLSessionRequestBuilder<T>: RequestBuilder<T> {
      */
     public var taskDidReceiveChallenge: NolockOCRClientAPIChallengeHandler?
 
-    required public init(method: String, URLString: String, parameters: [String: Any]?, headers: [String: String] = [:], requiresAuthentication: Bool) {
-        super.init(method: method, URLString: URLString, parameters: parameters, headers: headers, requiresAuthentication: requiresAuthentication)
+    required public init(method: String, URLString: String, parameters: [String: Any]?, headers: [String: String] = [:]) {
+        super.init(method: method, URLString: URLString, parameters: parameters, headers: headers)
     }
 
     /**

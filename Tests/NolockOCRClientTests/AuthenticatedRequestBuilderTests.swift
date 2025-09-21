@@ -122,20 +122,19 @@ final class AuthenticatedRequestBuilderTests: XCTestCase {
 
     // MARK: - Tests for Authentication Manager Integration
 
-    func testAuthenticationManagerCachesToken() async throws {
+    func testAuthenticationManagerFetchesToken() async throws {
         // Given: A mock provider with a valid token
-        mockProvider.mockToken = "cached-token"
+        mockProvider.mockToken = "test-token"
 
         // When: Getting token twice
         let token1 = try await authManager.getToken()
-        let token2 = authManager.getCachedToken()
+        let token2 = try await authManager.getToken()
 
-        // Then: Both should return the same token
-        XCTAssertEqual(token1, "cached-token")
-        XCTAssertEqual(token2, "cached-token")
+        // Then: Both should return tokens
+        XCTAssertEqual(token1, "test-token")
+        XCTAssertEqual(token2, "test-token")
 
-        // And: Provider should only be called once (due to caching)
-        // Note: This requires tracking call counts in the mock provider
+        // Note: Without caching, provider is called each time
     }
 
     func testAuthenticationManagerRefreshesExpiredToken() async throws {

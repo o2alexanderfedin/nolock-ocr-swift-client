@@ -3,51 +3,18 @@ import Foundation
 import StoreKit
 #endif
 
-/// Actor for thread-safe cache management
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
-actor CacheActor {
-    private var cachedToken: String?
-    private var tokenExpiration: Date?
-
-    func getCachedToken(bufferTime: TimeInterval) -> String? {
-        if let token = cachedToken,
-           let expiration = tokenExpiration,
-           expiration.timeIntervalSinceNow > bufferTime {
-            return token
-        }
-        return nil
-    }
-
-    func setCachedToken(_ token: String, expiration: Date) {
-        self.cachedToken = token
-        self.tokenExpiration = expiration
-    }
-
-    func clearCache() {
-        self.cachedToken = nil
-        self.tokenExpiration = nil
-    }
-
-    func getExpiration() -> Date? {
-        return tokenExpiration
-    }
-}
-
 /// StoreKit 2 based authentication provider that extracts JWS tokens from active subscriptions
 @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
 public final class StoreKitAuthenticationProvider: AuthenticationProvider {
 
     // MARK: - Properties
 
-    /// Actor for thread-safe access to cached values
-    private let cacheActor = CacheActor()
-
     /// Configuration for the authentication provider
-    private let configuration: AuthenticationConfiguration
+    public let configuration: AuthenticationConfiguration
 
     /// Product identifiers to check for active subscriptions (optional)
     /// If nil, will check all subscriptions
-    private let productIdentifiers: Set<String>?
+    public let productIdentifiers: Set<String>?
 
     // MARK: - Initialization
 
@@ -66,30 +33,20 @@ public final class StoreKitAuthenticationProvider: AuthenticationProvider {
     // MARK: - AuthenticationProvider Protocol
 
     public func getCurrentToken() async throws -> String {
-        // Check cached token first
-        if let cached = await cacheActor.getCachedToken(bufferTime: configuration.tokenRefreshBuffer) {
-            return cached
-        }
-
-        // Fetch new token from StoreKit
         return try await fetchTokenFromStoreKit()
     }
 
     public func refreshToken() async throws -> String {
-        // Clear cache
-        await cacheActor.clearCache()
-
-        // Fetch fresh token
         return try await fetchTokenFromStoreKit()
     }
 
     public func isTokenValid() async throws -> Bool {
-        guard let expiration = await cacheActor.getExpiration() else {
+        do {
+            _ = try await fetchTokenFromStoreKit()
+            return true
+        } catch {
             return false
         }
-
-        // Check if token expires within the buffer period
-        return expiration.timeIntervalSinceNow > configuration.tokenRefreshBuffer
     }
 
     // MARK: - Private Methods
@@ -135,12 +92,6 @@ public final class StoreKitAuthenticationProvider: AuthenticationProvider {
               let jws = foundJWS else {
             throw AuthenticationError.noActiveSubscription
         }
-
-        // Extract expiration date for caching
-        let expirationDate = transaction.expirationDate ?? Date().addingTimeInterval(3600) // Default 1 hour
-
-        // Cache the token
-        await cacheActor.setCachedToken(jws, expiration: expirationDate)
 
         return jws
         #else
