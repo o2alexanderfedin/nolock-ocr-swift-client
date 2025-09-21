@@ -106,19 +106,6 @@ open class NolockOCRClientAPI {
         )
     }
 
-    /// Disables authentication for the client
-    public static func disableAuthentication() {
-        // Clear authentication manager
-        AuthenticationManager.shared.configure(provider: nil)
-
-        // Switch back to standard request builder factory
-        requestBuilderFactory = URLSessionRequestBuilderFactory()
-    }
-
-    /// Clears any cached authentication tokens
-    public static func clearAuthenticationCache() {
-        AuthenticationManager.shared.clearCache()
-    }
 }
 
 open class RequestBuilder<T> {
@@ -128,17 +115,15 @@ open class RequestBuilder<T> {
     public let method: String
     public let URLString: String
     public let requestTask: RequestTask = RequestTask()
-    public let requiresAuthentication: Bool
 
     /// Optional block to obtain a reference to the request's progress instance when available.
     public var onProgressReady: ((Progress) -> Void)?
 
-    required public init(method: String, URLString: String, parameters: [String: Any]?, headers: [String: String] = [:], requiresAuthentication: Bool) {
+    required public init(method: String, URLString: String, parameters: [String: Any]?, headers: [String: String] = [:]) {
         self.method = method
         self.URLString = URLString
         self.parameters = parameters
         self.headers = headers
-        self.requiresAuthentication = requiresAuthentication
 
         addHeaders(NolockOCRClientAPI.customHeaders)
         addCredential()

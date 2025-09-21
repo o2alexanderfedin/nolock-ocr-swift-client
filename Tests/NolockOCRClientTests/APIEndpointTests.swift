@@ -10,6 +10,19 @@ final class APIEndpointTests: XCTestCase {
     override func setUpWithError() throws {
         // Configure the API base URL before each test
         NolockOCRClientAPI.basePath = Self.testBaseURL
+
+        // Configure mock authentication for testing
+        // This provides a test JWT token that the API should accept
+        let testToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXIiLCJpYXQiOjE3MjY4NzcwMDAsImV4cCI6MTc1ODQxMzAwMH0.test-signature"
+        NolockOCRClientAPI.configureMockAuthentication(
+            mockToken: testToken,
+            configuration: .default
+        )
+    }
+
+    override func tearDown() {
+        // Clean up after tests
+        super.tearDown()
     }
     
     // MARK: - Health API Tests
@@ -291,8 +304,50 @@ final class APIEndpointTests: XCTestCase {
         }
     }
     
+    // MARK: - Error Handling Tests
+
+    func testServerErrorMessageIsPreserved() async throws {
+        // Given: Invalid authentication token
+        NolockOCRClientAPI.configureMockAuthentication(
+            mockToken: "invalid-test-token",
+            configuration: .default
+        )
+
+        // Create a minimal test file
+        let testData = Data("test image data".utf8)
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("test_\(UUID().uuidString).jpg")
+        try testData.write(to: tempURL)
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+
+        do {
+            // When: Calling OCR endpoint with invalid token
+            _ = try await OCROperationsAPI.processCheckOcr(body: tempURL)
+            XCTFail("Should have thrown an error")
+        } catch {
+            // Then: We should get the actual server error
+            print("Full error: \(error)")
+
+            if case let ErrorResponse.error(statusCode, data, response, _) = error {
+                print("Status code: \(statusCode)")
+
+                // Extract and verify server error message
+                if let data = data {
+                    let serverError = String(data: data, encoding: .utf8) ?? "No error body"
+                    print("Server error message: \(serverError)")
+
+                    // The server should return its actual error, not our local error
+                    XCTAssertTrue(serverError.contains("Invalid authentication token") ||
+                                 serverError.contains("error") ||
+                                 statusCode == 401,
+                                 "Should get actual server error, got: \(serverError)")
+                }
+            }
+        }
+    }
+
     // MARK: - Helper Methods
-    
+
     private func createTempImageFile(data: Data, extension ext: String) -> URL {
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("test_image_\(UUID().uuidString)")

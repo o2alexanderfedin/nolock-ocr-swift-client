@@ -9,7 +9,7 @@ public class AuthenticatedRequestBuilderFactory: RequestBuilderFactory {
     // MARK: - Properties
 
     /// The authentication provider for token management
-    private let authProvider: AuthenticationProvider?
+    private let authProvider: AuthenticationProvider
 
     /// Configuration for authentication behavior
     private let configuration: AuthenticationConfiguration
@@ -17,7 +17,7 @@ public class AuthenticatedRequestBuilderFactory: RequestBuilderFactory {
     // MARK: - Public Accessors for Testing
 
     /// The current authentication provider (for testing)
-    public var provider: AuthenticationProvider? {
+    public var provider: AuthenticationProvider {
         return authProvider
     }
 
@@ -30,9 +30,9 @@ public class AuthenticatedRequestBuilderFactory: RequestBuilderFactory {
 
     /// Initializes the authenticated request builder factory
     /// - Parameters:
-    ///   - authProvider: The authentication provider (optional - if nil, no auth headers are added)
+    ///   - authProvider: The authentication provider
     ///   - configuration: Authentication configuration
-    public init(authProvider: AuthenticationProvider? = nil,
+    public init(authProvider: AuthenticationProvider,
                 configuration: AuthenticationConfiguration = .default) {
         self.authProvider = authProvider
         self.configuration = configuration
@@ -41,21 +41,11 @@ public class AuthenticatedRequestBuilderFactory: RequestBuilderFactory {
     // MARK: - RequestBuilderFactory Protocol
 
     public func getNonDecodableBuilder<T>() -> RequestBuilder<T>.Type {
-        // Return authenticated version if we have a provider
-        if authProvider != nil {
-            return AuthenticatedURLSessionRequestBuilder<T>.self
-        }
-        // Fall back to standard builder
-        return URLSessionRequestBuilder<T>.self
+        return AuthenticatedURLSessionRequestBuilder<T>.self
     }
 
     public func getBuilder<T: Decodable>() -> RequestBuilder<T>.Type {
-        // Return authenticated version if we have a provider
-        if authProvider != nil {
-            return AuthenticatedURLSessionDecodableRequestBuilder<T>.self
-        }
-        // Fall back to standard builder
-        return URLSessionDecodableRequestBuilder<T>.self
+        return AuthenticatedURLSessionDecodableRequestBuilder<T>.self
     }
 }
 
@@ -76,76 +66,44 @@ open class AuthenticatedURLSessionRequestBuilder<T>: URLSessionRequestBuilder<T>
 
     // MARK: - Overrides
 
-    override open func buildHeaders() -> [String: String] {
-        var headers = super.buildHeaders()
-
-        // Only add auth header if authentication is required
-        if requiresAuthentication {
-            // Try to get token synchronously (from cache if available)
-            if let token = authManager.getCachedToken() {
-                headers["Authorization"] = "Bearer \(token)"
-            } else {
-                // If no cached token, we'll need to fetch asynchronously in execute
-                // Mark that we need async token fetch
-                headers["X-Needs-Auth"] = "true"
-            }
-        }
-
-        return headers
-    }
-
     override open func execute(_ apiResponseQueue: DispatchQueue = NolockOCRClientAPI.apiResponseQueue,
                               _ completion: @escaping (_ result: Swift.Result<Response<T>, ErrorResponse>) -> Void) -> RequestTask {
 
-        // Check if we need async authentication
-        let needsAuth = requiresAuthentication && authManager.getCachedToken() == nil
+        // Always fetch and add authentication token
+        let requestTask = RequestTask()
 
-        if needsAuth {
-            // Fetch token asynchronously before executing request
-            let requestTask = RequestTask()
+        if #available(iOS 13.0, macOS 10.15, *) {
+            Task {
+            do {
+                // Get fresh token
+                let token = try await authManager.getToken()
 
-            if #available(iOS 13.0, macOS 10.15, *) {
-                Task {
-                do {
-                    // Get fresh token
-                    let token = try await authManager.getToken()
+                // Update headers with token
+                var updatedHeaders = headers
+                updatedHeaders["Authorization"] = "Bearer \(token)"
 
-                    // Update headers with token
-                    var updatedHeaders = headers
-                    updatedHeaders["Authorization"] = "Bearer \(token)"
-                    updatedHeaders.removeValue(forKey: "X-Needs-Auth")
+                // Create new request builder with updated headers
+                let authenticatedBuilder = AuthenticatedURLSessionRequestBuilder<T>(
+                    method: method,
+                    URLString: URLString,
+                    parameters: parameters,
+                    headers: updatedHeaders
+                )
 
-                    // Create new request builder with updated headers
-                    let authenticatedBuilder = AuthenticatedURLSessionRequestBuilder<T>(
-                        method: method,
-                        URLString: URLString,
-                        parameters: parameters,
-                        headers: updatedHeaders,
-                        requiresAuthentication: requiresAuthentication
-                    )
+                // Execute the authenticated request
+                _ = authenticatedBuilder.executeWithRetry(apiResponseQueue, completion)
 
-                    // Execute the authenticated request
-                    _ = authenticatedBuilder.executeWithRetry(apiResponseQueue, completion)
-
-                } catch {
-                    // Handle authentication error
-                    apiResponseQueue.async {
-                        completion(.failure(ErrorResponse.error(401, nil, nil, error)))
-                    }
-                }
+            } catch {
+                // Execute anyway to get the actual server error response
+                _ = super.execute(apiResponseQueue, completion)
             }
-            } else {
-                // Fallback for older OS versions
-                apiResponseQueue.async {
-                    completion(.failure(ErrorResponse.error(500, nil, nil, NSError(domain: "Authentication", code: -1, userInfo: [NSLocalizedDescriptionKey: "Authentication not available on this OS version"]))))
-                }
-            }
-
-            return requestTask
-        } else {
-            // Execute normally with retry logic
-            return executeWithRetry(apiResponseQueue, completion)
         }
+        } else {
+            // Fallback for older OS versions
+            _ = super.execute(apiResponseQueue, completion)
+        }
+
+        return requestTask
     }
 
     /// Executes the request with retry logic for 401 responses
@@ -162,7 +120,7 @@ open class AuthenticatedURLSessionRequestBuilder<T>: URLSessionRequestBuilder<T>
             case .failure(let errorResponse):
                 // Check if it's a 401 Unauthorized
                 if case .error(let statusCode, _, _, _) = errorResponse,
-                   statusCode == 401 && self.requiresAuthentication {
+                   statusCode == 401 {
                     // Attempt token refresh
                     if #available(iOS 13.0, macOS 10.15, *) {
                         Task {
@@ -179,15 +137,14 @@ open class AuthenticatedURLSessionRequestBuilder<T>: URLSessionRequestBuilder<T>
                                 method: self.method,
                                 URLString: self.URLString,
                                 parameters: self.parameters,
-                                headers: updatedHeaders,
-                                requiresAuthentication: false // Disable auth to prevent retry loop
+                                headers: updatedHeaders
                             )
 
                             // Execute retry (without further retry to avoid infinite loop)
                             _ = retryBuilder.executeWithRetry(apiResponseQueue, completion)
 
                         } catch {
-                            // Token refresh failed, return original 401 error
+                            // Token refresh failed, return original 401 error with server's response
                             apiResponseQueue.async {
                                 completion(result)
                             }
@@ -231,12 +188,6 @@ public class AuthenticationManager {
     /// Configuration for authentication
     private var configuration: AuthenticationConfiguration
 
-    /// Cached token for synchronous access
-    private var cachedToken: String?
-
-    /// Token expiration time
-    private var tokenExpiration: Date?
-
     /// Lock for thread-safe access
     private let lock = NSLock()
 
@@ -252,15 +203,13 @@ public class AuthenticationManager {
     /// - Parameters:
     ///   - provider: The authentication provider to use
     ///   - configuration: Authentication configuration
-    public func configure(provider: AuthenticationProvider?,
+    public func configure(provider: AuthenticationProvider,
                          configuration: AuthenticationConfiguration = .default) {
         lock.lock()
         defer { lock.unlock() }
 
         self.authProvider = provider
         self.configuration = configuration
-        self.cachedToken = nil
-        self.tokenExpiration = nil
     }
 
     /// The current authentication provider (for testing)
@@ -272,31 +221,10 @@ public class AuthenticationManager {
 
     // MARK: - Token Management
 
-    /// Gets a cached token if available and valid
-    /// - Returns: The cached token or nil if not available/expired
-    public func getCachedToken() -> String? {
-        lock.lock()
-        defer { lock.unlock() }
-
-        // Check if we have a cached token and it's not expired
-        if let token = cachedToken,
-           let expiration = tokenExpiration,
-           expiration.timeIntervalSinceNow > configuration.tokenRefreshBuffer {
-            return token
-        }
-
-        return nil
-    }
-
-    /// Gets a valid authentication token, fetching or refreshing if needed
+    /// Gets a valid authentication token
     /// - Returns: A valid authentication token
     /// - Throws: AuthenticationError if token cannot be obtained
     public func getToken() async throws -> String {
-        // Check cache first
-        if let cached = getCachedToken() {
-            return cached
-        }
-
         // Get provider
         guard let provider = authProvider else {
             throw AuthenticationError.configurationError("No authentication provider configured")
@@ -317,12 +245,6 @@ public class AuthenticationManager {
             throw AuthenticationError.tokenExpired
         }
 
-        // Cache the token
-        lock.lock()
-        cachedToken = token
-        tokenExpiration = Date().addingTimeInterval(3600) // Default 1 hour cache
-        lock.unlock()
-
         return token
     }
 
@@ -334,22 +256,7 @@ public class AuthenticationManager {
             throw AuthenticationError.configurationError("No authentication provider configured")
         }
 
-        let token = try await provider.refreshToken()
-
-        // Update cache
-        lock.lock()
-        cachedToken = token
-        tokenExpiration = Date().addingTimeInterval(3600) // Default 1 hour cache
-        lock.unlock()
-
-        return token
+        return try await provider.refreshToken()
     }
 
-    /// Clears the cached token
-    public func clearCache() {
-        lock.lock()
-        defer { lock.unlock() }
-        cachedToken = nil
-        tokenExpiration = nil
-    }
 }
