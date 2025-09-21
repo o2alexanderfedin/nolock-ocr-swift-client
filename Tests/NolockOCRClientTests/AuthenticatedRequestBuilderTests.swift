@@ -14,20 +14,20 @@ final class AuthenticatedRequestBuilderTests: XCTestCase {
     // MARK: - Properties
 
     var mockProvider: MockAuthenticationProvider!
-    var authManager: AuthenticationManager!
 
     // MARK: - Setup & Teardown
 
     override func setUp() {
         super.setUp()
         mockProvider = MockAuthenticationProvider()
-        authManager = AuthenticationManager.shared
-        authManager.configure(provider: mockProvider, configuration: .default)
+        // Configure the global authentication context
+        AuthenticationContext.configure(provider: mockProvider, configuration: .default)
     }
 
     override func tearDown() {
+        // Reset the global context
+        AuthenticationContext.reset()
         mockProvider = nil
-        authManager = nil
         super.tearDown()
     }
 
@@ -118,44 +118,42 @@ final class AuthenticatedRequestBuilderTests: XCTestCase {
         XCTAssertEqual(headers["Authorization"], "Bearer auth-token")
     }
 
-    // MARK: - Tests for Authentication Manager Integration
+    // MARK: - Tests for Provider Integration
 
-    func testAuthenticationManagerFetchesToken() async throws {
+    func testProviderFetchesToken() async throws {
         // Given: A mock provider with a valid token
         mockProvider.mockToken = "test-token"
 
         // When: Getting token twice
-        let token1 = try await authManager.getToken()
-        let token2 = try await authManager.getToken()
+        let token1 = try await mockProvider.getCurrentToken()
+        let token2 = try await mockProvider.getCurrentToken()
 
         // Then: Both should return tokens
         XCTAssertEqual(token1, "test-token")
         XCTAssertEqual(token2, "test-token")
-
-        // Note: Without caching, provider is called each time
     }
 
-    func testAuthenticationManagerRefreshesExpiredToken() async throws {
+    func testProviderRefreshesExpiredToken() async throws {
         // Given: An expired cached token
         mockProvider.mockToken = "expired-token"
         mockProvider.isTokenValidResponse = false
         mockProvider.refreshedMockToken = "new-fresh-token"
 
-        // When: Requesting a token
-        let token = try await authManager.refreshToken()
+        // When: Requesting a token refresh
+        let token = try await mockProvider.refreshToken()
 
         // Then: Should return the refreshed token
         XCTAssertEqual(token, "new-fresh-token")
     }
 
-    func testAuthenticationManagerHandlesNoSubscription() async throws {
+    func testProviderHandlesNoSubscription() async throws {
         // Given: A provider that throws no subscription error
         mockProvider.shouldThrowError = true
         mockProvider.errorToThrow = AuthenticationError.noActiveSubscription
 
         // When: Attempting to get token
         do {
-            _ = try await authManager.getToken()
+            _ = try await mockProvider.getCurrentToken()
             XCTFail("Should have thrown an error")
         } catch {
             // Then: Should throw the appropriate error
@@ -201,7 +199,7 @@ final class AuthenticatedRequestBuilderTests: XCTestCase {
         mockProvider.refreshedMockToken = "proactively-refreshed"
 
         // When: Getting token when current one is near expiration
-        let token = try await authManager.refreshToken()
+        let token = try await mockProvider.refreshToken()
 
         // Then: Should proactively refresh
         XCTAssertEqual(token, "proactively-refreshed")
@@ -216,7 +214,7 @@ final class AuthenticatedRequestBuilderTests: XCTestCase {
 
         // When: Attempting to get token
         do {
-            _ = try await authManager.getToken()
+            _ = try await mockProvider.getCurrentToken()
             XCTFail("Should have thrown an error")
         } catch {
             // Then: Should pass through the network error
@@ -229,7 +227,7 @@ final class AuthenticatedRequestBuilderTests: XCTestCase {
         mockProvider.mockToken = ""  // Empty token
 
         // When: Getting token
-        let token = try await authManager.getToken()
+        let token = try await mockProvider.getCurrentToken()
 
         // Then: Should handle gracefully (empty tokens should be caught by API)
         XCTAssertEqual(token, "")
@@ -243,9 +241,9 @@ final class AuthenticatedRequestBuilderTests: XCTestCase {
         mockProvider.simulatedDelay = 0.5
 
         // When: Multiple concurrent token requests
-        async let token1 = authManager.getToken()
-        async let token2 = authManager.getToken()
-        async let token3 = authManager.getToken()
+        async let token1 = mockProvider.getCurrentToken()
+        async let token2 = mockProvider.getCurrentToken()
+        async let token3 = mockProvider.getCurrentToken()
 
         // Then: All should receive the same token (due to synchronization)
         let tokens = try await [token1, token2, token3]
@@ -257,13 +255,13 @@ final class AuthenticatedRequestBuilderTests: XCTestCase {
         // (requires call count tracking in mock)
     }
 
-    func testAuthenticationManagerHandlesConcurrentRefresh() async throws {
+    func testProviderHandlesConcurrentRefresh() async throws {
         // Given: Multiple refresh requests
         mockProvider.refreshedMockToken = "concurrently-refreshed"
 
         // When: Multiple concurrent refresh requests
-        async let refresh1 = authManager.refreshToken()
-        async let refresh2 = authManager.refreshToken()
+        async let refresh1 = mockProvider.refreshToken()
+        async let refresh2 = mockProvider.refreshToken()
 
         // Then: Both should succeed with same token
         let tokens = try await [refresh1, refresh2]
@@ -315,8 +313,8 @@ extension AuthenticatedURLSessionRequestBuilder {
         // The actual implementation would be in the production code
         var headers = buildHeaders()
 
-        // Always add authentication
-        if let provider = authenticationManager.provider {
+        // Always add authentication from context
+        if let provider = AuthenticationContext.provider {
             do {
                 let token = try await provider.getCurrentToken()
                 headers["Authorization"] = "Bearer \(token)"

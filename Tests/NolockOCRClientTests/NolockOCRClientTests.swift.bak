@@ -28,8 +28,6 @@ final class NolockOCRClientTests: XCTestCase {
     // MARK: - Health Check Tests
     
     func testHealthEndpoint() async throws {
-        // Health check endpoint doesn't require authentication
-        // It should succeed regardless of auth state
         let response = try await HealthAPI.healthCheck()
         XCTAssertNotNil(response, "Health check should return a response")
         // The health endpoint typically returns a simple status string
@@ -43,42 +41,29 @@ final class NolockOCRClientTests: XCTestCase {
             XCTFail("Test HEIC image not found")
             return
         }
-
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
-        do {
-            // Test using OCROperationsWrapper (should auto-convert HEIC to JPEG)
-            let response = try await OCROperationsWrapper.processCheckOcr(imageURL: testImageURL)
-            if !isRealAuth {
-                XCTFail("Expected 401 error with mock auth, but request succeeded")
-            }
-
-            XCTAssertNotNil(response, "Response should not be nil")
-            // Note: success field may be nil, so we check for actual data instead
-
-            if let check = response.modelData {
-                XCTAssertNotNil(check.confidence, "Check should have confidence score")
-                print("Check OCR Results:")
-                print("  Check Number: \(check.checkNumber ?? "N/A")")
-                print("  Account: \(check.accountNumber ?? "N/A")")
-                print("  Routing: \(check.routingNumber ?? "N/A")")
-                print("  Amount: $\(check.amount ?? 0)")
-                print("  Payee: \(check.payee ?? "N/A")")
-                print("  Payer: \(check.payer ?? "N/A")")
-                print("  Confidence: \(check.confidence ?? 0)")
-
-                if let date = check.date {
-                    let formatter = DateFormatter()
-                    formatter.dateStyle = .medium
-                    formatter.timeStyle = .none
-                    print("  Date: \(formatter.string(from: date))")
-                }
-            }
-        } catch {
-            if isRealAuth {
-                XCTFail("Expected success with real auth, but got error: \(error)")
-            } else {
-                print("Expected 401 error with mock auth: \(error)")
+        
+        // Test using OCROperationsWrapper (should auto-convert HEIC to JPEG)
+        let response = try await OCROperationsWrapper.processCheckOcr(imageURL: testImageURL)
+        
+        XCTAssertNotNil(response, "Response should not be nil")
+        // Note: success field may be nil, so we check for actual data instead
+        
+        if let check = response.modelData {
+            XCTAssertNotNil(check.confidence, "Check should have confidence score")
+            print("Check OCR Results:")
+            print("  Check Number: \(check.checkNumber ?? "N/A")")
+            print("  Account: \(check.accountNumber ?? "N/A")")
+            print("  Routing: \(check.routingNumber ?? "N/A")")
+            print("  Amount: $\(check.amount ?? 0)")
+            print("  Payee: \(check.payee ?? "N/A")")
+            print("  Payer: \(check.payer ?? "N/A")")
+            print("  Confidence: \(check.confidence ?? 0)")
+            
+            if let date = check.date {
+                let formatter = DateFormatter()
+                formatter.dateStyle = .medium
+                formatter.timeStyle = .none
+                print("  Date: \(formatter.string(from: date))")
             }
         }
     }
@@ -88,35 +73,22 @@ final class NolockOCRClientTests: XCTestCase {
             XCTFail("Test HEIC image not found")
             return
         }
-
+        
         // First convert HEIC to JPEG
         let jpegURL = try OCROperationsWrapper.convertHEICToJPEG(heicURL: heicURL, quality: 0.95)
         defer { try? FileManager.default.removeItem(at: jpegURL) }
-
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
-        do {
-            // Test direct API call with JPEG
-            let response = try await OCROperationsAPI.processCheckOcr(body: jpegURL)
-            if !isRealAuth {
-                XCTFail("Expected 401 error with mock auth, but request succeeded")
-            }
-
-            XCTAssertNotNil(response, "Response should not be nil")
-            // Note: success field may be nil, so we check for actual data instead
-
-            if let check = response.modelData {
-                XCTAssertNotNil(check.confidence, "Check should have confidence score")
-                print("Direct JPEG Check OCR Results:")
-                print("  Confidence: \(check.confidence ?? 0)")
-                print("  Valid Input: \(check.isValidInput ?? false)")
-            }
-        } catch {
-            if isRealAuth {
-                XCTFail("Expected success with real auth, but got error: \(error)")
-            } else {
-                print("Expected 401 error with mock auth: \(error)")
-            }
+        
+        // Test direct API call with JPEG
+        let response = try await OCROperationsAPI.processCheckOcr(body: jpegURL)
+        
+        XCTAssertNotNil(response, "Response should not be nil")
+        // Note: success field may be nil, so we check for actual data instead
+        
+        if let check = response.modelData {
+            XCTAssertNotNil(check.confidence, "Check should have confidence score")
+            print("Direct JPEG Check OCR Results:")
+            print("  Confidence: \(check.confidence ?? 0)")
+            print("  Valid Input: \(check.isValidInput ?? false)")
         }
     }
     
@@ -125,35 +97,22 @@ final class NolockOCRClientTests: XCTestCase {
             XCTFail("Test HEIC image not found")
             return
         }
-
+        
         // Load image as Data
         let imageData = try Data(contentsOf: testImageURL)
         XCTAssertGreaterThan(imageData.count, 0, "Image data should not be empty")
-
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
-        do {
-            // Test using Data overload (new in v1.6.0)
-            let response = try await OCROperationsWrapper.processCheckOcr(imageData: imageData)
-            if !isRealAuth {
-                XCTFail("Expected 401 error with mock auth, but request succeeded")
-            }
-
-            XCTAssertNotNil(response, "Response should not be nil")
-            // Note: success field may be nil, so we check for actual data instead
-
-            if let check = response.modelData {
-                XCTAssertNotNil(check.confidence, "Check should have confidence score")
-                print("Data overload Check OCR Results:")
-                print("  Image data size: \(imageData.count) bytes")
-                print("  Confidence: \(check.confidence ?? 0)")
-            }
-        } catch {
-            if isRealAuth {
-                XCTFail("Expected success with real auth, but got error: \(error)")
-            } else {
-                print("Expected 401 error with mock auth: \(error)")
-            }
+        
+        // Test using Data overload (new in v1.6.0)
+        let response = try await OCROperationsWrapper.processCheckOcr(imageData: imageData)
+        
+        XCTAssertNotNil(response, "Response should not be nil")
+        // Note: success field may be nil, so we check for actual data instead
+        
+        if let check = response.modelData {
+            XCTAssertNotNil(check.confidence, "Check should have confidence score")
+            print("Data overload Check OCR Results:")
+            print("  Image data size: \(imageData.count) bytes")
+            print("  Confidence: \(check.confidence ?? 0)")
         }
     }
     
@@ -164,50 +123,37 @@ final class NolockOCRClientTests: XCTestCase {
             XCTFail("Test HEIC image not found")
             return
         }
-
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
-        do {
-            // Test using OCROperationsWrapper (should auto-convert HEIC to JPEG)
-            let response = try await OCROperationsWrapper.processReceiptOcr(imageURL: testImageURL)
-            if !isRealAuth {
-                XCTFail("Expected 401 error with mock auth, but request succeeded")
+        
+        // Test using OCROperationsWrapper (should auto-convert HEIC to JPEG)
+        let response = try await OCROperationsWrapper.processReceiptOcr(imageURL: testImageURL)
+        
+        XCTAssertNotNil(response, "Response should not be nil")
+        // Note: success field may be nil, so we check for actual data instead
+        
+        if let receipt = response.modelData {
+            XCTAssertNotNil(receipt.confidence, "Receipt should have confidence score")
+            print("Receipt OCR Results:")
+            
+            if let merchant = receipt.merchant {
+                print("  Merchant: \(merchant.name ?? "N/A")")
+                print("  Address: \(merchant.address ?? "N/A")")
+                print("  Phone: \(merchant.phone ?? "N/A")")
             }
-
-            XCTAssertNotNil(response, "Response should not be nil")
-            // Note: success field may be nil, so we check for actual data instead
-
-            if let receipt = response.modelData {
-                XCTAssertNotNil(receipt.confidence, "Receipt should have confidence score")
-                print("Receipt OCR Results:")
-
-                if let merchant = receipt.merchant {
-                    print("  Merchant: \(merchant.name ?? "N/A")")
-                    print("  Address: \(merchant.address ?? "N/A")")
-                    print("  Phone: \(merchant.phone ?? "N/A")")
-                }
-
-                if let totals = receipt.totals {
-                    print("  Subtotal: $\(totals.subtotal ?? 0)")
-                    print("  Tax: $\(totals.tax ?? 0)")
-                    print("  Total: $\(totals.total ?? 0)")
-                    print("  Tip: $\(totals.tip ?? 0)")
-                }
-
-                print("  Confidence: \(receipt.confidence ?? 0)")
-
-                if let timestamp = receipt.timestamp {
-                    let formatter = DateFormatter()
-                    formatter.dateStyle = .medium
-                    formatter.timeStyle = .short
-                    print("  Timestamp: \(formatter.string(from: timestamp))")
-                }
+            
+            if let totals = receipt.totals {
+                print("  Subtotal: $\(totals.subtotal ?? 0)")
+                print("  Tax: $\(totals.tax ?? 0)")
+                print("  Total: $\(totals.total ?? 0)")
+                print("  Tip: $\(totals.tip ?? 0)")
             }
-        } catch {
-            if isRealAuth {
-                XCTFail("Expected success with real auth, but got error: \(error)")
-            } else {
-                print("Expected 401 error with mock auth: \(error)")
+            
+            print("  Confidence: \(receipt.confidence ?? 0)")
+            
+            if let timestamp = receipt.timestamp {
+                let formatter = DateFormatter()
+                formatter.dateStyle = .medium
+                formatter.timeStyle = .short
+                print("  Timestamp: \(formatter.string(from: timestamp))")
             }
         }
     }
@@ -217,35 +163,22 @@ final class NolockOCRClientTests: XCTestCase {
             XCTFail("Test HEIC image not found")
             return
         }
-
+        
         // Load image as Data
         let imageData = try Data(contentsOf: testImageURL)
         XCTAssertGreaterThan(imageData.count, 0, "Image data should not be empty")
-
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
-        do {
-            // Test using Data overload (new in v1.6.0)
-            let response = try await OCROperationsWrapper.processReceiptOcr(imageData: imageData)
-            if !isRealAuth {
-                XCTFail("Expected 401 error with mock auth, but request succeeded")
-            }
-
-            XCTAssertNotNil(response, "Response should not be nil")
-            // Note: success field may be nil, so we check for actual data instead
-
-            if let receipt = response.modelData {
-                XCTAssertNotNil(receipt.confidence, "Receipt should have confidence score")
-                print("Data overload Receipt OCR Results:")
-                print("  Image data size: \(imageData.count) bytes")
-                print("  Confidence: \(receipt.confidence ?? 0)")
-            }
-        } catch {
-            if isRealAuth {
-                XCTFail("Expected success with real auth, but got error: \(error)")
-            } else {
-                print("Expected 401 error with mock auth: \(error)")
-            }
+        
+        // Test using Data overload (new in v1.6.0)
+        let response = try await OCROperationsWrapper.processReceiptOcr(imageData: imageData)
+        
+        XCTAssertNotNil(response, "Response should not be nil")
+        // Note: success field may be nil, so we check for actual data instead
+        
+        if let receipt = response.modelData {
+            XCTAssertNotNil(receipt.confidence, "Receipt should have confidence score")
+            print("Data overload Receipt OCR Results:")
+            print("  Image data size: \(imageData.count) bytes")
+            print("  Confidence: \(receipt.confidence ?? 0)")
         }
     }
     
@@ -317,28 +250,23 @@ final class NolockOCRClientTests: XCTestCase {
             XCTFail("Test HEIC image not found")
             return
         }
-
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
+        
         do {
             let response = try await OCROperationsWrapper.processCheckOcr(imageURL: testImageURL)
-            if !isRealAuth {
-                XCTFail("Expected 401 error with mock auth, but request succeeded")
-            }
-
+            
             if let check = response.modelData {
                 if let date = check.date {
                     // Test that the date was parsed successfully
                     XCTAssertNotNil(date, "Date should be parsed successfully")
-
+                    
                     // Verify the date is reasonable (not in the far future or past)
                     let now = Date()
                     let tenYearsAgo = Calendar.current.date(byAdding: .year, value: -10, to: now)!
                     let oneYearFromNow = Calendar.current.date(byAdding: .year, value: 1, to: now)!
-
-                    XCTAssertTrue(date >= tenYearsAgo && date <= oneYearFromNow,
+                    
+                    XCTAssertTrue(date >= tenYearsAgo && date <= oneYearFromNow, 
                                 "Date should be within reasonable range")
-
+                    
                     print("Date parsing test successful:")
                     print("  Parsed date: \(date)")
                     print("  Formatted: \(DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .none))")
@@ -347,26 +275,16 @@ final class NolockOCRClientTests: XCTestCase {
                 }
             }
         } catch let error as DecodingError {
-            if isRealAuth {
-                // If there's a date parsing error with real auth, we want to capture it for analysis
-                switch error {
-                case .dataCorrupted(let context):
-                    if context.codingPath.contains(where: { $0.stringValue == "date" }) {
-                        XCTFail("Date parsing failed: \(context.debugDescription)")
-                    } else {
-                        throw error // Re-throw if it's not a date parsing issue
-                    }
-                default:
-                    throw error
+            // If there's a date parsing error, we want to capture it for analysis
+            switch error {
+            case .dataCorrupted(let context):
+                if context.codingPath.contains(where: { $0.stringValue == "date" }) {
+                    XCTFail("Date parsing failed: \(context.debugDescription)")
+                } else {
+                    throw error // Re-throw if it's not a date parsing issue
                 }
-            } else {
-                print("Expected 401 error with mock auth: \(error)")
-            }
-        } catch {
-            if isRealAuth {
-                XCTFail("Expected success with real auth, but got error: \(error)")
-            } else {
-                print("Expected 401 error with mock auth: \(error)")
+            default:
+                throw error
             }
         }
     }
@@ -376,28 +294,23 @@ final class NolockOCRClientTests: XCTestCase {
             XCTFail("Test HEIC image not found")
             return
         }
-
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
+        
         do {
             let response = try await OCROperationsWrapper.processReceiptOcr(imageURL: testImageURL)
-            if !isRealAuth {
-                XCTFail("Expected 401 error with mock auth, but request succeeded")
-            }
-
+            
             if let receipt = response.modelData {
                 if let timestamp = receipt.timestamp {
                     // Test that the timestamp was parsed successfully
                     XCTAssertNotNil(timestamp, "Timestamp should be parsed successfully")
-
+                    
                     // Verify the timestamp is reasonable
                     let now = Date()
                     let tenYearsAgo = Calendar.current.date(byAdding: .year, value: -10, to: now)!
                     let oneYearFromNow = Calendar.current.date(byAdding: .year, value: 1, to: now)!
-
-                    XCTAssertTrue(timestamp >= tenYearsAgo && timestamp <= oneYearFromNow,
+                    
+                    XCTAssertTrue(timestamp >= tenYearsAgo && timestamp <= oneYearFromNow, 
                                 "Timestamp should be within reasonable range")
-
+                    
                     print("Receipt timestamp parsing test successful:")
                     print("  Parsed timestamp: \(timestamp)")
                     print("  Formatted: \(DateFormatter.localizedString(from: timestamp, dateStyle: .medium, timeStyle: .short))")
@@ -406,157 +319,116 @@ final class NolockOCRClientTests: XCTestCase {
                 }
             }
         } catch let error as DecodingError {
-            if isRealAuth {
-                // If there's a timestamp parsing error with real auth, we want to capture it for analysis
-                switch error {
-                case .dataCorrupted(let context):
-                    if context.codingPath.contains(where: { $0.stringValue == "timestamp" }) {
-                        XCTFail("Timestamp parsing failed: \(context.debugDescription)")
-                    } else {
-                        throw error // Re-throw if it's not a timestamp parsing issue
-                    }
-                default:
-                    throw error
+            // If there's a timestamp parsing error, we want to capture it for analysis
+            switch error {
+            case .dataCorrupted(let context):
+                if context.codingPath.contains(where: { $0.stringValue == "timestamp" }) {
+                    XCTFail("Timestamp parsing failed: \(context.debugDescription)")
+                } else {
+                    throw error // Re-throw if it's not a timestamp parsing issue
                 }
-            } else {
-                print("Expected 401 error with mock auth: \(error)")
-            }
-        } catch {
-            if isRealAuth {
-                XCTFail("Expected success with real auth, but got error: \(error)")
-            } else {
-                print("Expected 401 error with mock auth: \(error)")
+            default:
+                throw error
             }
         }
     }
     
     // MARK: - Completion Handler Tests
     
-    func testCheckOCRWithCompletionHandler() async throws {
+    func testCheckOCRWithCompletionHandler() throws {
         guard let testImageURL = getTestImageURL() else {
             XCTFail("Test HEIC image not found")
             return
         }
-
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
+        
         let expectation = XCTestExpectation(description: "Check OCR completion handler")
-
+        
         OCROperationsWrapper.processCheckOcr(imageURL: testImageURL) { result in
             switch result {
             case .success(let response):
-                if !isRealAuth {
-                    XCTFail("Expected 401 error with mock auth, but request succeeded")
-                }
                 XCTAssertNotNil(response, "Response should not be nil")
                 // Note: success field may be nil, so we check for actual data instead
-
+                
                 if let check = response.modelData {
                     XCTAssertNotNil(check.confidence, "Check should have confidence score")
                     print("Completion handler Check OCR successful, confidence: \(check.confidence ?? 0)")
                 }
-
+                
             case .failure(let error):
-                if isRealAuth {
-                    XCTFail("Expected success with real auth, but got error: \(error)")
-                } else {
-                    print("Check OCR completion handler (mock auth): Got expected 401 error")
-                }
+                XCTFail("Check OCR completion handler failed: \(error)")
             }
-
+            
             expectation.fulfill()
         }
-
+        
         wait(for: [expectation], timeout: 30.0)
     }
     
-    func testReceiptOCRWithCompletionHandler() async throws {
+    func testReceiptOCRWithCompletionHandler() throws {
         guard let testImageURL = getTestImageURL() else {
             XCTFail("Test HEIC image not found")
             return
         }
-
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
+        
         let expectation = XCTestExpectation(description: "Receipt OCR completion handler")
-
+        
         OCROperationsWrapper.processReceiptOcr(imageURL: testImageURL) { result in
             switch result {
             case .success(let response):
-                if !isRealAuth {
-                    XCTFail("Expected 401 error with mock auth, but request succeeded")
-                }
                 XCTAssertNotNil(response, "Response should not be nil")
                 // Note: success field may be nil, so we check for actual data instead
-
+                
                 if let receipt = response.modelData {
                     XCTAssertNotNil(receipt.confidence, "Receipt should have confidence score")
                     print("Completion handler Receipt OCR successful, confidence: \(receipt.confidence ?? 0)")
                 }
-
+                
             case .failure(let error):
-                if isRealAuth {
-                    XCTFail("Expected success with real auth, but got error: \(error)")
-                } else {
-                    print("Receipt OCR completion handler (mock auth): Got expected 401 error")
-                }
+                XCTFail("Receipt OCR completion handler failed: \(error)")
             }
-
+            
             expectation.fulfill()
         }
-
+        
         wait(for: [expectation], timeout: 30.0)
     }
     
-    func testDataOverloadCompletionHandlers() async throws {
+    func testDataOverloadCompletionHandlers() throws {
         guard let testImageURL = getTestImageURL() else {
             XCTFail("Test HEIC image not found")
             return
         }
-
+        
         let imageData = try Data(contentsOf: testImageURL)
         XCTAssertGreaterThan(imageData.count, 0, "Image data should not be empty")
-
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
+        
         let checkExpectation = XCTestExpectation(description: "Check OCR data completion handler")
         let receiptExpectation = XCTestExpectation(description: "Receipt OCR data completion handler")
-
+        
         // Test Check OCR with Data completion handler
         OCROperationsWrapper.processCheckOcr(imageData: imageData) { result in
             switch result {
             case .success(let response):
-                if !isRealAuth {
-                    XCTFail("Expected 401 error with mock auth, but check request succeeded")
-                }
                 XCTAssertNotNil(response, "Check response should not be nil")
                 print("Data completion handler Check OCR successful")
             case .failure(let error):
-                if isRealAuth {
-                    XCTFail("Expected success with real auth, but check got error: \(error)")
-                } else {
-                    print("Check OCR data handler (mock auth): Got expected 401 error")
-                }
+                XCTFail("Check OCR data completion handler failed: \(error)")
             }
             checkExpectation.fulfill()
         }
-
+        
         // Test Receipt OCR with Data completion handler
         OCROperationsWrapper.processReceiptOcr(imageData: imageData) { result in
             switch result {
             case .success(let response):
-                if !isRealAuth {
-                    XCTFail("Expected 401 error with mock auth, but receipt request succeeded")
-                }
                 XCTAssertNotNil(response, "Receipt response should not be nil")
                 print("Data completion handler Receipt OCR successful")
             case .failure(let error):
-                if isRealAuth {
-                    XCTFail("Expected success with real auth, but receipt got error: \(error)")
-                } else {
-                    print("Receipt OCR data handler (mock auth): Got expected 401 error")
-                }
+                XCTFail("Receipt OCR data completion handler failed: \(error)")
             }
             receiptExpectation.fulfill()
         }
-
+        
         wait(for: [checkExpectation, receiptExpectation], timeout: 60.0)
     }
     

@@ -52,11 +52,11 @@ final class DataOverloadTests: XCTestCase {
             } else {
                 // Expected 401 error with mock auth
                 print("Check OCR with HEIC Data test (mock auth): Got expected 401 error")
-            }
+            print("  Check number: \(check.checkNumber ?? "N/A")")
+            print("  Amount: $\(check.amount ?? 0)")
         }
     }
     
-
     func testCheckOCRWithJPEGData() async throws {
         guard let testImageURL = Bundle.module.url(forResource: "IMG_4171", withExtension: "heic") else {
             XCTFail("Test HEIC image not found")
@@ -71,16 +71,8 @@ final class DataOverloadTests: XCTestCase {
         let jpegData = try Data(contentsOf: jpegURL)
         XCTAssertGreaterThan(jpegData.count, 0, "JPEG data should not be empty")
         
-        // Configure authentication
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
-        do {
-            // Test Data overload with JPEG data (no conversion needed)
-            let response = try await OCROperationsWrapper.processCheckOcr(imageData: jpegData)
-
-            if !isRealAuth {
-                XCTFail("Expected 401 error with mock auth, but request succeeded")
-            }
+        // Test Data overload with JPEG data (no conversion needed)
+        let response = try await OCROperationsWrapper.processCheckOcr(imageData: jpegData)
         
         XCTAssertNotNil(response, "Response should not be nil")
         // Note: success field may be nil, so we check for actual data instead
@@ -90,17 +82,9 @@ final class DataOverloadTests: XCTestCase {
         print("  Success: \(response.success ?? false)")
         print("  Processing time: \(response.processingTime ?? "N/A")")
         
-            if let check = response.modelData {
-                XCTAssertNotNil(check.confidence, "Check should have confidence score")
-                print("  Confidence: \(check.confidence ?? 0)")
-            }
-        } catch {
-            if isRealAuth {
-                XCTFail("Expected success with real auth, but got error: \(error)")
-            } else {
-                // Expected 401 error with mock auth
-                print("Check OCR with JPEG Data test (mock auth): Got expected 401 error")
-            }
+        if let check = response.modelData {
+            XCTAssertNotNil(check.confidence, "Check should have confidence score")
+            print("  Confidence: \(check.confidence ?? 0)")
         }
     }
     
@@ -116,16 +100,8 @@ final class DataOverloadTests: XCTestCase {
         let heicData = try Data(contentsOf: testImageURL)
         XCTAssertGreaterThan(heicData.count, 0, "HEIC data should not be empty")
         
-        // Configure authentication
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
-        do {
-            // Test Data overload with HEIC data (should auto-convert)
-            let response = try await OCROperationsWrapper.processReceiptOcr(imageData: heicData)
-
-            if !isRealAuth {
-                XCTFail("Expected 401 error with mock auth, but request succeeded")
-            }
+        // Test Data overload with HEIC data (should auto-convert)
+        let response = try await OCROperationsWrapper.processReceiptOcr(imageData: heicData)
         
         XCTAssertNotNil(response, "Response should not be nil")
         // Note: success field may be nil, so we check for actual data instead
@@ -147,14 +123,6 @@ final class DataOverloadTests: XCTestCase {
                 print("  Total: $\(totals.total ?? 0)")
             }
         }
-        } catch {
-            if isRealAuth {
-                XCTFail("Expected success with real auth, but got error: \(error)")
-            } else {
-                // Expected 401 error with mock auth
-                print("Receipt OCR with HEIC Data test (mock auth): Got expected 401 error")
-            }
-        }
     }
     
     func testReceiptOCRWithJPEGData() async throws {
@@ -171,16 +139,8 @@ final class DataOverloadTests: XCTestCase {
         let jpegData = try Data(contentsOf: jpegURL)
         XCTAssertGreaterThan(jpegData.count, 0, "JPEG data should not be empty")
         
-        // Configure authentication
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
-        do {
-            // Test Data overload with JPEG data (no conversion needed)
-            let response = try await OCROperationsWrapper.processReceiptOcr(imageData: jpegData)
-
-            if !isRealAuth {
-                XCTFail("Expected 401 error with mock auth, but request succeeded")
-            }
+        // Test Data overload with JPEG data (no conversion needed)
+        let response = try await OCROperationsWrapper.processReceiptOcr(imageData: jpegData)
         
         XCTAssertNotNil(response, "Response should not be nil")
         // Note: success field may be nil, so we check for actual data instead
@@ -190,34 +150,23 @@ final class DataOverloadTests: XCTestCase {
         print("  Success: \(response.success ?? false)")
         print("  Processing time: \(response.processingTime ?? "N/A")")
         
-            if let receipt = response.modelData {
-                XCTAssertNotNil(receipt.confidence, "Receipt should have confidence score")
-                print("  Confidence: \(receipt.confidence ?? 0)")
-            }
-        } catch {
-            if isRealAuth {
-                XCTFail("Expected success with real auth, but got error: \(error)")
-            } else {
-                // Expected 401 error with mock auth
-                print("Receipt OCR with JPEG Data test (mock auth): Got expected 401 error")
-            }
+        if let receipt = response.modelData {
+            XCTAssertNotNil(receipt.confidence, "Receipt should have confidence score")
+            print("  Confidence: \(receipt.confidence ?? 0)")
         }
     }
     
     // MARK: - Completion Handler Tests with Data
     
-    func testCheckOCRDataCompletionHandler() async throws {
+    func testCheckOCRDataCompletionHandler() throws {
         guard let testImageURL = Bundle.module.url(forResource: "IMG_4171", withExtension: "heic") else {
             XCTFail("Test HEIC image not found")
             return
         }
-
+        
         let imageData = try Data(contentsOf: testImageURL)
         XCTAssertGreaterThan(imageData.count, 0, "Image data should not be empty")
-
-        // Configure authentication
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
+        
         let expectation = XCTestExpectation(description: "Check OCR data completion handler")
         
         OCROperationsWrapper.processCheckOcr(imageData: imageData) { result in
@@ -229,22 +178,13 @@ final class DataOverloadTests: XCTestCase {
                 print("Check OCR data completion handler test:")
                 print("  Success: \(response.success ?? false)")
                 
-                if !isRealAuth {
-                    XCTFail("Expected 401 error with mock auth, but request succeeded")
-                }
-
                 if let check = response.modelData {
                     XCTAssertNotNil(check.confidence, "Check should have confidence score")
                     print("  Confidence: \(check.confidence ?? 0)")
                 }
                 
             case .failure(let error):
-                if isRealAuth {
-                    XCTFail("Expected success with real auth, but got error: \(error)")
-                } else {
-                    // Expected 401 error with mock auth
-                    print("Check OCR data completion handler (mock auth): Got expected 401 error")
-                }
+                XCTFail("Check OCR data completion handler failed: \(error)")
             }
             
             expectation.fulfill()
@@ -253,18 +193,15 @@ final class DataOverloadTests: XCTestCase {
         wait(for: [expectation], timeout: 30.0)
     }
     
-    func testReceiptOCRDataCompletionHandler() async throws {
+    func testReceiptOCRDataCompletionHandler() throws {
         guard let testImageURL = Bundle.module.url(forResource: "IMG_4171", withExtension: "heic") else {
             XCTFail("Test HEIC image not found")
             return
         }
-
+        
         let imageData = try Data(contentsOf: testImageURL)
         XCTAssertGreaterThan(imageData.count, 0, "Image data should not be empty")
-
-        // Configure authentication
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
+        
         let expectation = XCTestExpectation(description: "Receipt OCR data completion handler")
         
         OCROperationsWrapper.processReceiptOcr(imageData: imageData) { result in
@@ -276,22 +213,13 @@ final class DataOverloadTests: XCTestCase {
                 print("Receipt OCR data completion handler test:")
                 print("  Success: \(response.success ?? false)")
                 
-                if !isRealAuth {
-                    XCTFail("Expected 401 error with mock auth, but request succeeded")
-                }
-
                 if let receipt = response.modelData {
                     XCTAssertNotNil(receipt.confidence, "Receipt should have confidence score")
                     print("  Confidence: \(receipt.confidence ?? 0)")
                 }
                 
             case .failure(let error):
-                if isRealAuth {
-                    XCTFail("Expected success with real auth, but got error: \(error)")
-                } else {
-                    // Expected 401 error with mock auth
-                    print("Receipt OCR data completion handler (mock auth): Got expected 401 error")
-                }
+                XCTFail("Receipt OCR data completion handler failed: \(error)")
             }
             
             expectation.fulfill()
@@ -307,22 +235,14 @@ final class DataOverloadTests: XCTestCase {
             XCTFail("Test HEIC image not found")
             return
         }
-
+        
         let imageData = try Data(contentsOf: testImageURL)
-
-        // Configure authentication
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
-        do {
-            // Test with URL
-            let urlResponse = try await OCROperationsWrapper.processCheckOcr(imageURL: testImageURL)
-
-            // Test with Data
-            let dataResponse = try await OCROperationsWrapper.processCheckOcr(imageData: imageData)
-
-            if !isRealAuth {
-                XCTFail("Expected 401 error with mock auth, but requests succeeded")
-            }
+        
+        // Test with URL
+        let urlResponse = try await OCROperationsWrapper.processCheckOcr(imageURL: testImageURL)
+        
+        // Test with Data
+        let dataResponse = try await OCROperationsWrapper.processCheckOcr(imageData: imageData)
         
         // Both should succeed
         XCTAssertNotNil(urlResponse, "URL response should not be nil")
@@ -342,14 +262,6 @@ final class DataOverloadTests: XCTestCase {
                 XCTAssertLessThan(difference, 0.1, "Confidence scores should be similar between URL and Data methods")
             }
         }
-        } catch {
-            if isRealAuth {
-                XCTFail("Expected success with real auth, but got error: \(error)")
-            } else {
-                // Expected 401 error with mock auth
-                print("Check OCR comparison test (mock auth): Got expected 401 error")
-            }
-        }
     }
     
     func testReceiptOCRComparisonURLvsData() async throws {
@@ -357,22 +269,14 @@ final class DataOverloadTests: XCTestCase {
             XCTFail("Test HEIC image not found")
             return
         }
-
+        
         let imageData = try Data(contentsOf: testImageURL)
-
-        // Configure authentication
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
-        do {
-            // Test with URL
-            let urlResponse = try await OCROperationsWrapper.processReceiptOcr(imageURL: testImageURL)
-
-            // Test with Data
-            let dataResponse = try await OCROperationsWrapper.processReceiptOcr(imageData: imageData)
-
-            if !isRealAuth {
-                XCTFail("Expected 401 error with mock auth, but requests succeeded")
-            }
+        
+        // Test with URL
+        let urlResponse = try await OCROperationsWrapper.processReceiptOcr(imageURL: testImageURL)
+        
+        // Test with Data
+        let dataResponse = try await OCROperationsWrapper.processReceiptOcr(imageData: imageData)
         
         // Both should succeed
         XCTAssertNotNil(urlResponse, "URL response should not be nil")
@@ -385,19 +289,11 @@ final class DataOverloadTests: XCTestCase {
         if let urlReceipt = urlResponse.modelData, let dataReceipt = dataResponse.modelData {
             print("  URL confidence: \(urlReceipt.confidence ?? 0)")
             print("  Data confidence: \(dataReceipt.confidence ?? 0)")
-
+            
             // Confidence scores should be reasonably similar (within 0.1)
             if let urlConf = urlReceipt.confidence, let dataConf = dataReceipt.confidence {
                 let difference = abs(urlConf - dataConf)
                 XCTAssertLessThan(difference, 0.1, "Confidence scores should be similar between URL and Data methods")
-            }
-        }
-        } catch {
-            if isRealAuth {
-                XCTFail("Expected success with real auth, but got error: \(error)")
-            } else {
-                // Expected 401 error with mock auth
-                print("Receipt OCR comparison test (mock auth): Got expected 401 error")
             }
         }
     }
@@ -406,36 +302,25 @@ final class DataOverloadTests: XCTestCase {
     
     func testDataOverloadWithInvalidData() async throws {
         let invalidData = Data([0x00, 0x01, 0x02, 0x03])
-
-        // Configure authentication
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
+        
         do {
             _ = try await OCROperationsWrapper.processCheckOcr(imageData: invalidData)
-            if !isRealAuth {
-                // With mock auth, we expect 401 before invalid data check
-                XCTFail("Expected 401 error with mock auth, but request succeeded")
-            } else {
-                // The API might still process invalid images, so this might not always throw
-                print("API processed invalid data without throwing error")
-            }
+            // The API might still process invalid images, so this might not always throw
+            print("API processed invalid data without throwing error")
         } catch {
-            // If an error is thrown, that's acceptable for both auth states
-            print("API rejected invalid data: \(error)")
+            // If an error is thrown, that's also acceptable
+            print("API correctly rejected invalid data: \(error)")
         }
     }
     
     func testDataOverloadWithEmptyData() async throws {
         let emptyData = Data()
-
-        // Configure authentication
-        let (_, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
+        
         do {
             _ = try await OCROperationsWrapper.processCheckOcr(imageData: emptyData)
             XCTFail("Should have thrown an error for empty data")
         } catch {
-            // Expected behavior for both auth states
+            // Expected behavior
             print("API correctly rejected empty data: \(error)")
         }
     }
@@ -447,24 +332,20 @@ final class DataOverloadTests: XCTestCase {
             XCTFail("Test HEIC image not found")
             return
         }
-
+        
         let originalData = try Data(contentsOf: testImageURL)
-
+        
         // Create larger data by duplicating the image data (simulating a very large image)
         var largeData = Data()
         largeData.append(originalData)
         largeData.append(originalData) // Double the size
-
-        // Configure authentication
-        let (_, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
+        
         // Note: This will likely fail because it's not a valid image anymore,
         // but it tests memory handling of large data
         do {
             let response = try await OCROperationsWrapper.processCheckOcr(imageData: largeData)
             print("Large data test - Response received: \(response.success ?? false)")
         } catch {
-            // Expected error for invalid large data (regardless of auth)
             print("Large data test - Expected error for invalid large data: \(error)")
         }
     }
@@ -474,32 +355,21 @@ final class DataOverloadTests: XCTestCase {
             XCTFail("Test HEIC image not found")
             return
         }
-
+        
         let imageData = try Data(contentsOf: testImageURL)
         let numberOfOperations = 5
-
-        // Configure authentication
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
+        
         for i in 1...numberOfOperations {
             do {
                 let response = try await OCROperationsWrapper.processCheckOcr(imageData: imageData)
-                if !isRealAuth {
-                    XCTFail("Expected 401 error with mock auth, but operation \(i) succeeded")
-                }
                 XCTAssertNotNil(response, "Operation \(i) should complete successfully")
                 print("Memory test operation \(i) completed")
             } catch {
-                if isRealAuth {
-                    XCTFail("Expected success with real auth, but operation \(i) failed: \(error)")
-                } else {
-                    // Expected 401 with mock auth
-                    print("Memory test operation \(i) got expected 401 error")
-                }
+                XCTFail("Memory test operation \(i) failed: \(error)")
             }
         }
-
-        print("Memory test: \(numberOfOperations) operations completed")
+        
+        print("Memory test: \(numberOfOperations) operations completed successfully")
     }
     
     // MARK: - Temporary File Cleanup Tests
@@ -509,42 +379,28 @@ final class DataOverloadTests: XCTestCase {
             XCTFail("Test HEIC image not found")
             return
         }
-
+        
         let imageData = try Data(contentsOf: testImageURL)
-
-        // Configure authentication
-        let (isRealAuth, _) = await TestAuthenticationHelper.configureTestAuthentication()
-
+        
         // Get temp directory file count before
         let tempDir = FileManager.default.temporaryDirectory
         let beforeFiles = (try? FileManager.default.contentsOfDirectory(atPath: tempDir.path)) ?? []
-
-        do {
-            // Perform data operation
-            let response = try await OCROperationsWrapper.processCheckOcr(imageData: imageData)
-            if !isRealAuth {
-                XCTFail("Expected 401 error with mock auth, but request succeeded")
-            }
-            XCTAssertNotNil(response, "Response should not be nil")
-        } catch {
-            if isRealAuth {
-                XCTFail("Expected success with real auth, but got error: \(error)")
-            } else {
-                // Expected 401 with mock auth
-                print("File cleanup test (mock auth): Got expected 401 error")
-            }
-        }
-
+        
+        // Perform data operation
+        let response = try await OCROperationsWrapper.processCheckOcr(imageData: imageData)
+        XCTAssertNotNil(response, "Response should not be nil")
+        
         // Get temp directory file count after
         let afterFiles = (try? FileManager.default.contentsOfDirectory(atPath: tempDir.path)) ?? []
-
+        
         // Should not have accumulated temp files
         let tempFileIncrease = afterFiles.count - beforeFiles.count
         XCTAssertLessThanOrEqual(tempFileIncrease, 1, "Should not accumulate many temp files")
-
+        
         print("File cleanup test:")
         print("  Files before: \(beforeFiles.count)")
         print("  Files after: \(afterFiles.count)")
         print("  Increase: \(tempFileIncrease)")
     }
+    
 }
