@@ -4,7 +4,7 @@ require 'xcodeproj'
 require 'fileutils'
 
 # Open the project
-project_path = 'MinimalOCRApp/MinimalOCRApp.xcodeproj'
+project_path = 'MinimalOCRApp.xcodeproj'
 project = Xcodeproj::Project.open(project_path)
 
 puts "Opened project: #{project_path}"
@@ -90,7 +90,7 @@ project.save
 puts "✅ Project saved successfully!"
 
 # Create/update Package.resolved file
-package_resolved_path = 'MinimalOCRApp/MinimalOCRApp.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved'
+package_resolved_path = 'MinimalOCRApp.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved'
 FileUtils.mkdir_p(File.dirname(package_resolved_path))
 
 package_resolved_content = {
@@ -115,4 +115,4 @@ File.write(package_resolved_path, JSON.pretty_generate(package_resolved_content)
 puts "✅ Created Package.resolved file"
 
 puts "\n📱 Now you can build the project with:"
-puts "  xcodebuild -project MinimalOCRApp/MinimalOCRApp.xcodeproj -scheme MinimalOCRApp -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build"
+puts "  xcodebuild -project MinimalOCRApp.xcodeproj -scheme MinimalOCRApp -destination 'platform=iOS Simulator,name=iPhone 15 Pro' build"

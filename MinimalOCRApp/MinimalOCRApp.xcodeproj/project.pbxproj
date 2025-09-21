@@ -32,16 +32,22 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		BAE856E02E564FCE0099C662 /* MinimalOCRApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = MinimalOCRApp;
 			sourceTree = "<group>";
 		};
 		BAE856F02E564FD00099C662 /* MinimalOCRAppTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = MinimalOCRAppTests;
 			sourceTree = "<group>";
 		};
 		BAE856FA2E564FD00099C662 /* MinimalOCRAppUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = MinimalOCRAppUITests;
 			sourceTree = "<group>";
 		};
@@ -112,6 +118,7 @@
 			);
 			name = MinimalOCRApp;
 			packageProductDependencies = (
+				6D9617045708BBF8EEDBD333 /* NolockOCRClient */,
 			);
 			productName = MinimalOCRApp;
 			productReference = BAE856DE2E564FCE0099C662 /* MinimalOCRApp.app */;
@@ -134,8 +141,6 @@
 				BAE856F02E564FD00099C662 /* MinimalOCRAppTests */,
 			);
 			name = MinimalOCRAppTests;
-			packageProductDependencies = (
-			);
 			productName = MinimalOCRAppTests;
 			productReference = BAE856ED2E564FD00099C662 /* MinimalOCRAppTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -157,8 +162,6 @@
 				BAE856FA2E564FD00099C662 /* MinimalOCRAppUITests */,
 			);
 			name = MinimalOCRAppUITests;
-			packageProductDependencies = (
-			);
 			productName = MinimalOCRAppUITests;
 			productReference = BAE856F72E564FD00099C662 /* MinimalOCRAppUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -195,6 +198,9 @@
 			);
 			mainGroup = BAE856D52E564FCE0099C662;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				063EFEE09F94DC364B735EE2 /* XCLocalSwiftPackageReference ".." */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BAE856DF2E564FCE0099C662 /* Products */;
 			projectDirPath = "";
@@ -321,7 +327,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -378,7 +384,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -449,7 +455,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Ozone.MinimalOCRAppTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -467,7 +473,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Ozone.MinimalOCRAppTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -550,6 +556,21 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		063EFEE09F94DC364B735EE2 /* XCLocalSwiftPackageReference "../../nolock-ocr-swift-client" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../../nolock-ocr-swift-client";
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		6D9617045708BBF8EEDBD333 /* NolockOCRClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 063EFEE09F94DC364B735EE2 /* XCLocalSwiftPackageReference ".." */;
+			productName = NolockOCRClient;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BAE856D62E564FCE0099C662 /* Project object */;
 }
