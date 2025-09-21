@@ -328,20 +328,21 @@ final class APIEndpointTests: XCTestCase {
             // Then: We should get the actual server error
             print("Full error: \(error)")
 
-            if case let ErrorResponse.error(statusCode, data, response, _) = error {
+            if case let ErrorResponse.error(statusCode, data, _, underlyingError) = error {
                 print("Status code: \(statusCode)")
 
-                // Extract and verify server error message
-                if let data = data {
+                // Check if we have a ServerErrorResponse
+                if let serverError = underlyingError as? ServerErrorResponse {
+                    print("Server error message: \(serverError.message)")
+                    XCTAssertFalse(serverError.message.isEmpty, "Server error message should not be empty")
+                } else if let data = data {
+                    // Fallback to raw data if ServerErrorResponse wasn't created
                     let serverError = String(data: data, encoding: .utf8) ?? "No error body"
-                    print("Server error message: \(serverError)")
-
-                    // The server should return its actual error, not our local error
-                    XCTAssertTrue(serverError.contains("Invalid authentication token") ||
-                                 serverError.contains("error") ||
-                                 statusCode == 401,
-                                 "Should get actual server error, got: \(serverError)")
+                    print("Raw server response: \(serverError)")
                 }
+
+                // Verify we got a 401
+                XCTAssertEqual(statusCode, 401, "Should get 401 status code")
             }
         }
     }
