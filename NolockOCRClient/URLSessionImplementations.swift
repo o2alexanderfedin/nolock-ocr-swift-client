@@ -196,7 +196,14 @@ open class URLSessionRequestBuilder<T>: RequestBuilder<T> {
         }
 
         guard httpResponse.isStatusCodeSuccessful else {
-            completion(.failure(ErrorResponse.error(httpResponse.statusCode, data, response, DecodableRequestBuilderError.unsuccessfulHTTPStatusCode)))
+            // Try to extract server error message
+            let serverError: Error
+            if let errorResponse = ServerErrorResponse.from(data: data) {
+                serverError = errorResponse
+            } else {
+                serverError = DecodableRequestBuilderError.unsuccessfulHTTPStatusCode
+            }
+            completion(.failure(ErrorResponse.error(httpResponse.statusCode, data, response, serverError)))
             return
         }
 
@@ -289,7 +296,14 @@ open class URLSessionDecodableRequestBuilder<T: Decodable>: URLSessionRequestBui
         }
 
         guard httpResponse.isStatusCodeSuccessful else {
-            completion(.failure(ErrorResponse.error(httpResponse.statusCode, data, response, DecodableRequestBuilderError.unsuccessfulHTTPStatusCode)))
+            // Try to extract server error message
+            let serverError: Error
+            if let errorResponse = ServerErrorResponse.from(data: data) {
+                serverError = errorResponse
+            } else {
+                serverError = DecodableRequestBuilderError.unsuccessfulHTTPStatusCode
+            }
+            completion(.failure(ErrorResponse.error(httpResponse.statusCode, data, response, serverError)))
             return
         }
 
