@@ -42,8 +42,7 @@ final class AuthenticatedRequestBuilderTests: XCTestCase {
             method: "GET",
             URLString: "https://test.com/api",
             parameters: nil,
-            headers: [:],
-            requiresAuthentication: true
+            headers: [:]
         )
 
         // When: Building headers asynchronously
@@ -53,21 +52,22 @@ final class AuthenticatedRequestBuilderTests: XCTestCase {
         XCTAssertEqual(headers["Authorization"], "Bearer test-token-123")
     }
 
-    func testAuthenticatedRequestBuilderSkipsAuthWhenNotRequired() async throws {
-        // Given: An authenticated request builder with requiresAuthentication = false
+    func testAuthenticatedRequestBuilderAlwaysAddsAuth() async throws {
+        // Given: An authenticated request builder
+        mockProvider.mockToken = "always-auth-token"
+
         let builder = AuthenticatedURLSessionRequestBuilder<CheckModelOcrResponse>(
             method: "GET",
             URLString: "https://test.com/public",
             parameters: nil,
-            headers: [:],
-            requiresAuthentication: false
+            headers: [:]
         )
 
         // When: Building headers
         let headers = await builder.buildHeadersAsync()
 
-        // Then: No authorization header should be added
-        XCTAssertNil(headers["Authorization"])
+        // Then: Authorization header should always be added
+        XCTAssertEqual(headers["Authorization"], "Bearer always-auth-token")
     }
 
     func testAuthenticatedRequestBuilderHandlesTokenRefresh() async throws {
@@ -81,8 +81,7 @@ final class AuthenticatedRequestBuilderTests: XCTestCase {
             method: "POST",
             URLString: "https://test.com/api",
             parameters: ["key": "value"],
-            headers: [:],
-            requiresAuthentication: true
+            headers: [:]
         )
 
         // When: Executing request (which should trigger token refresh)
@@ -107,8 +106,7 @@ final class AuthenticatedRequestBuilderTests: XCTestCase {
             method: "PUT",
             URLString: "https://test.com/api",
             parameters: nil,
-            headers: existingHeaders,
-            requiresAuthentication: true
+            headers: existingHeaders
         )
 
         // When: Building headers
@@ -299,8 +297,7 @@ final class AuthenticatedRequestBuilderTests: XCTestCase {
             method: "POST",
             URLString: "https://test.com/api",
             parameters: nil,
-            headers: [:],
-            requiresAuthentication: true
+            headers: [:]
         )
 
         // When: The builder is created
@@ -318,15 +315,13 @@ extension AuthenticatedURLSessionRequestBuilder {
         // The actual implementation would be in the production code
         var headers = buildHeaders()
 
-        if requiresAuthentication {
-            // In real implementation, this would use the auth manager
-            if let provider = authenticationManager.provider {
-                do {
-                    let token = try await provider.getCurrentToken()
-                    headers["Authorization"] = "Bearer \(token)"
-                } catch {
-                    print("Failed to get auth token: \(error)")
-                }
+        // Always add authentication
+        if let provider = authenticationManager.provider {
+            do {
+                let token = try await provider.getCurrentToken()
+                headers["Authorization"] = "Bearer \(token)"
+            } catch {
+                print("Failed to get auth token: \(error)")
             }
         }
 

@@ -186,8 +186,7 @@ final class AuthenticationIntegrationTests: XCTestCase {
             method: "GET",
             URLString: "https://api.example.com/test",
             parameters: nil,
-            headers: [:],
-            requiresAuthentication: true
+            headers: [:]
         )
 
         // When: Building headers
@@ -371,8 +370,7 @@ final class AuthenticationIntegrationTests: XCTestCase {
             method: "GET",
             URLString: "https://api.example.com/protected",
             parameters: nil,
-            headers: [:],
-            requiresAuthentication: true
+            headers: [:]
         )
 
         // Then: Builder should be created
