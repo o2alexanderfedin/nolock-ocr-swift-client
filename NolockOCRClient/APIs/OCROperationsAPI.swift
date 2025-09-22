@@ -14,23 +14,41 @@ open class OCROperationsAPI {
 
     /**
      Process check image with OCR and extract structured data
-     
-     - parameter body: (body)  
+
+     - parameter body: (body)
+     - parameter tokenProvider: Optional token provider. If nil, uses StoreKitTokenProvider. Otherwise uses the provided token provider.
      - returns: CheckModelOcrResponse
      */
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func processCheckOcr(body: URL) async throws -> CheckModelOcrResponse {
-        return try await processCheckOcrWithRequestBuilder(body: body).execute().body
+    open class func processCheckOcr(body: URL, tokenProvider: TokenProvider? = nil) async throws -> CheckModelOcrResponse {
+        // Determine which provider to use
+        let provider: TokenProvider
+        if let tokenProvider = tokenProvider {
+            provider = tokenProvider
+        } else {
+            #if canImport(StoreKit)
+            if #available(iOS 15.0, macOS 12.0, *) {
+                provider = StoreKitTokenProvider()
+            } else {
+                provider = MockTokenProvider()
+            }
+            #else
+            provider = MockTokenProvider()
+            #endif
+        }
+
+        return try await processCheckOcrWithRequestBuilder(body: body, tokenProvider: provider).execute().body
     }
 
     /**
      Process check image with OCR and extract structured data
      - POST /ocr/checks
      - Processes a check image using Mistral OCR and extracts structured check data including amount, payee, payer, bank info, and routing details.
-     - parameter body: (body)  
-     - returns: RequestBuilder<CheckModelOcrResponse> 
+     - parameter body: (body)
+     - parameter tokenProvider: Optional token provider for authentication
+     - returns: RequestBuilder<CheckModelOcrResponse>
      */
-    open class func processCheckOcrWithRequestBuilder(body: URL) -> RequestBuilder<CheckModelOcrResponse> {
+    open class func processCheckOcrWithRequestBuilder(body: URL, tokenProvider: TokenProvider? = nil) -> RequestBuilder<CheckModelOcrResponse> {
         let localVariablePath = "/ocr/checks"
         let localVariableURLString = NolockOCRClientAPI.basePath + localVariablePath
         let localVariableParameters = ["body": body]
@@ -43,30 +61,59 @@ open class OCROperationsAPI {
 
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
 
-        let localVariableRequestBuilder: RequestBuilder<CheckModelOcrResponse>.Type = NolockOCRClientAPI.requestBuilderFactory.getBuilder()
-
-        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters)
+        // Create authenticated request builder if token provider is available
+        if let provider = tokenProvider {
+            return AuthenticatedDecodableRequestBuilder<CheckModelOcrResponse>(
+                method: "POST",
+                URLString: (localVariableUrlComponents?.string ?? localVariableURLString),
+                parameters: localVariableParameters,
+                headers: localVariableHeaderParameters,
+                tokenProvider: provider
+            )
+        } else {
+            // Use default factory
+            let localVariableRequestBuilder: RequestBuilder<CheckModelOcrResponse>.Type = NolockOCRClientAPI.requestBuilderFactory.getBuilder()
+            return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters)
+        }
     }
 
     /**
      Process receipt image with OCR and extract structured data
-     
-     - parameter body: (body)  
+
+     - parameter body: (body)
+     - parameter tokenProvider: Optional token provider. If nil, uses StoreKitTokenProvider. Otherwise uses the provided token provider.
      - returns: ReceiptModelOcrResponse
      */
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func processReceiptOcr(body: URL) async throws -> ReceiptModelOcrResponse {
-        return try await processReceiptOcrWithRequestBuilder(body: body).execute().body
+    open class func processReceiptOcr(body: URL, tokenProvider: TokenProvider? = nil) async throws -> ReceiptModelOcrResponse {
+        // Determine which provider to use
+        let provider: TokenProvider
+        if let tokenProvider = tokenProvider {
+            provider = tokenProvider
+        } else {
+            #if canImport(StoreKit)
+            if #available(iOS 15.0, macOS 12.0, *) {
+                provider = StoreKitTokenProvider()
+            } else {
+                provider = MockTokenProvider()
+            }
+            #else
+            provider = MockTokenProvider()
+            #endif
+        }
+
+        return try await processReceiptOcrWithRequestBuilder(body: body, tokenProvider: provider).execute().body
     }
 
     /**
      Process receipt image with OCR and extract structured data
      - POST /ocr/receipts
      - Processes a receipt image using Mistral OCR and extracts structured receipt data including merchant info, totals, items, and payment details.
-     - parameter body: (body)  
-     - returns: RequestBuilder<ReceiptModelOcrResponse> 
+     - parameter body: (body)
+     - parameter tokenProvider: Optional token provider for authentication
+     - returns: RequestBuilder<ReceiptModelOcrResponse>
      */
-    open class func processReceiptOcrWithRequestBuilder(body: URL) -> RequestBuilder<ReceiptModelOcrResponse> {
+    open class func processReceiptOcrWithRequestBuilder(body: URL, tokenProvider: TokenProvider? = nil) -> RequestBuilder<ReceiptModelOcrResponse> {
         let localVariablePath = "/ocr/receipts"
         let localVariableURLString = NolockOCRClientAPI.basePath + localVariablePath
         let localVariableParameters = ["body": body]
@@ -79,8 +126,19 @@ open class OCROperationsAPI {
 
         let localVariableHeaderParameters = APIHelper.rejectNilHeaders(localVariableNillableHeaders)
 
-        let localVariableRequestBuilder: RequestBuilder<ReceiptModelOcrResponse>.Type = NolockOCRClientAPI.requestBuilderFactory.getBuilder()
-
-        return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters)
+        // Create authenticated request builder if token provider is available
+        if let provider = tokenProvider {
+            return AuthenticatedDecodableRequestBuilder<ReceiptModelOcrResponse>(
+                method: "POST",
+                URLString: (localVariableUrlComponents?.string ?? localVariableURLString),
+                parameters: localVariableParameters,
+                headers: localVariableHeaderParameters,
+                tokenProvider: provider
+            )
+        } else {
+            // Use default factory
+            let localVariableRequestBuilder: RequestBuilder<ReceiptModelOcrResponse>.Type = NolockOCRClientAPI.requestBuilderFactory.getBuilder()
+            return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters)
+        }
     }
 }
