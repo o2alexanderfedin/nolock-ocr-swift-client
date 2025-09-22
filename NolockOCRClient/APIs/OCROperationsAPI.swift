@@ -20,22 +20,18 @@ open class OCROperationsAPI {
      - returns: CheckModelOcrResponse
      */
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    open class func processCheckOcr(body: URL, tokenProvider: TokenProvider? = nil) async throws -> CheckModelOcrResponse {
+    open class func processCheckOcr(body: URL) async throws -> CheckModelOcrResponse {
         // Determine which provider to use
         let provider: TokenProvider
-        if let tokenProvider = tokenProvider {
-            provider = tokenProvider
+        #if canImport(StoreKit)
+        if #available(iOS 15.0, macOS 12.0, *) {
+            provider = StoreKitTokenProvider()
         } else {
-            #if canImport(StoreKit)
-            if #available(iOS 15.0, macOS 12.0, *) {
-                provider = StoreKitTokenProvider()
-            } else {
-                provider = MockTokenProvider()
-            }
-            #else
             provider = MockTokenProvider()
-            #endif
         }
+        #else
+        provider = MockTokenProvider()
+        #endif
 
         return try await processCheckOcrWithRequestBuilder(body: body, tokenProvider: provider).execute().body
     }
