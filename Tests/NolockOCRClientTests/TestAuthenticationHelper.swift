@@ -20,11 +20,8 @@ class TestAuthenticationHelper {
         if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
             // Try to get a real StoreKit token
             do {
-                let provider = StoreKitAuthenticationProvider()
-                let isValid = try await provider.isTokenValid()
-                if isValid {
-                    return try await provider.getCurrentToken()
-                }
+                let provider = StoreKitTokenProvider()
+                return try await provider.getToken()
             } catch {
                 // No valid StoreKit token available
             }
@@ -41,14 +38,14 @@ class TestAuthenticationHelper {
             // Use real authentication
             #if canImport(StoreKit)
             if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
-                NolockOCRClientAPI.configureStoreKitAuthentication()
+                NolockOCRClientAPI.configureAuthentication(provider: StoreKitTokenProvider())
             }
             #endif
             return (isReal: true, token: realToken)
         } else {
             // Use mock authentication
             let mockToken = "mock-test-token-\(UUID().uuidString)"
-            NolockOCRClientAPI.configureMockAuthentication(mockToken: mockToken)
+            NolockOCRClientAPI.configureAuthentication(provider: MockTokenProvider())
             return (isReal: false, token: mockToken)
         }
     }
