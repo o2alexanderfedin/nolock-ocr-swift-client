@@ -37,18 +37,26 @@ public struct MimeTypeDetector {
         }
         #endif
         
-        // Fallback to legacy API
+        // Fallback for older OS versions that don't have UTType API
+        // These deprecated APIs are intentionally used for backward compatibility
         #if canImport(MobileCoreServices) || canImport(CoreServices)
-        if let uti = UTTypeCreatePreferredIdentifierForTag(
-            kUTTagClassFilenameExtension,
-            pathExtension as NSString,
-            nil
-        )?.takeRetainedValue(),
-           let mimetype = UTTypeCopyPreferredTagWithClass(
-            uti,
-            kUTTagClassMIMEType
-        )?.takeRetainedValue() {
-            return mimetype as String
+        // Note: These warnings cannot be suppressed in Swift, but the usage is intentional
+        // for supporting iOS < 14.0, macOS < 11.0, tvOS < 14.0, watchOS < 7.0
+        if #available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *) {
+            // Already handled above with modern API
+        } else {
+            // Must use deprecated API for older OS versions
+            if let uti = UTTypeCreatePreferredIdentifierForTag(
+                kUTTagClassFilenameExtension,
+                pathExtension as NSString,
+                nil
+            )?.takeRetainedValue(),
+               let mimetype = UTTypeCopyPreferredTagWithClass(
+                uti,
+                kUTTagClassMIMEType
+            )?.takeRetainedValue() {
+                return mimetype as String
+            }
         }
         #endif
         

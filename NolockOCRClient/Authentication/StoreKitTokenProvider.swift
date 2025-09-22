@@ -15,9 +15,8 @@ public struct StoreKitTokenProvider: TokenProvider {
                 return result.jwsRepresentation
             }
         }
-        throw NSError(domain: "NoToken", code: 0)
-        #else
-        throw NSError(domain: "StoreKitUnavailable", code: 0)
         #endif
+
+        throw NSError(domain: "NoToken", code: 0)
     }
 }

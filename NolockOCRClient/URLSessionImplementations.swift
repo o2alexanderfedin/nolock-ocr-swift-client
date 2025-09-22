@@ -159,9 +159,9 @@ open class URLSessionRequestBuilder<T>: RequestBuilder<T> {
                  }
              }
 
-            let dataTask = urlSession.dataTaskFromProtocol(with: request) { data, response, error in
+            let dataTask = urlSession.dataTaskFromProtocol(with: request) { [weak self] data, response, error in
                 apiResponseQueue.async {
-                    self.processRequestResponse(urlRequest: request, data: data, response: response, error: error, completion: completion)
+                    self?.processRequestResponse(urlRequest: request, data: data, response: response, error: error, completion: completion)
                     cleanupRequest()
                 }
             }
