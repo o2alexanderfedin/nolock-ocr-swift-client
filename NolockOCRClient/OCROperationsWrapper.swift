@@ -20,10 +20,12 @@ import UniformTypeIdentifiers
 public class OCROperationsWrapper {
     
     /// Process check OCR with automatic HEIC conversion if needed
-    /// - Parameter imageData: Data containing the image (HEIC, JPEG, PNG, etc.)
+    /// - Parameters:
+    ///   - imageData: Data containing the image (HEIC, JPEG, PNG, etc.)
+    ///   - tokenProvider: Optional token provider. If nil, uses StoreKitTokenProvider.
     /// - Returns: CheckModelOcrResponse from the API
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    public static func processCheckOcr(imageData: Data) async throws -> CheckModelOcrResponse {
+    public static func processCheckOcr(imageData: Data, tokenProvider: TokenProvider? = nil) async throws -> CheckModelOcrResponse {
         // Create temporary file from data
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -37,14 +39,16 @@ public class OCROperationsWrapper {
         }
         
         // Delegate to URL-based method
-        return try await processCheckOcr(imageURL: tempURL)
+        return try await processCheckOcr(imageURL: tempURL, tokenProvider: tokenProvider)
     }
     
     /// Process check OCR with automatic HEIC conversion if needed
-    /// - Parameter imageURL: URL to the image file (HEIC, JPEG, PNG, etc.)
+    /// - Parameters:
+    ///   - imageURL: URL to the image file (HEIC, JPEG, PNG, etc.)
+    ///   - tokenProvider: Optional token provider. If nil, uses StoreKitTokenProvider.
     /// - Returns: CheckModelOcrResponse from the API
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    public static func processCheckOcr(imageURL: URL) async throws -> CheckModelOcrResponse {
+    public static func processCheckOcr(imageURL: URL, tokenProvider: TokenProvider? = nil) async throws -> CheckModelOcrResponse {
         let processURL = try await prepareImageForOCR(imageURL: imageURL)
         let shouldCleanup = processURL != imageURL
         
@@ -54,14 +58,16 @@ public class OCROperationsWrapper {
             }
         }
         
-        return try await OCROperationsAPI.processCheckOcr(body: processURL)
+        return try await OCROperationsAPI.processCheckOcr(body: processURL, tokenProvider: tokenProvider)
     }
     
     /// Process receipt OCR with automatic HEIC conversion if needed
-    /// - Parameter imageData: Data containing the image (HEIC, JPEG, PNG, etc.)
+    /// - Parameters:
+    ///   - imageData: Data containing the image (HEIC, JPEG, PNG, etc.)
+    ///   - tokenProvider: Optional token provider. If nil, uses StoreKitTokenProvider.
     /// - Returns: ReceiptModelOcrResponse from the API
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    public static func processReceiptOcr(imageData: Data) async throws -> ReceiptModelOcrResponse {
+    public static func processReceiptOcr(imageData: Data, tokenProvider: TokenProvider? = nil) async throws -> ReceiptModelOcrResponse {
         // Create temporary file from data
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -75,14 +81,16 @@ public class OCROperationsWrapper {
         }
         
         // Delegate to URL-based method
-        return try await processReceiptOcr(imageURL: tempURL)
+        return try await processReceiptOcr(imageURL: tempURL, tokenProvider: tokenProvider)
     }
     
     /// Process receipt OCR with automatic HEIC conversion if needed
-    /// - Parameter imageURL: URL to the image file (HEIC, JPEG, PNG, etc.)
+    /// - Parameters:
+    ///   - imageURL: URL to the image file (HEIC, JPEG, PNG, etc.)
+    ///   - tokenProvider: Optional token provider. If nil, uses StoreKitTokenProvider.
     /// - Returns: ReceiptModelOcrResponse from the API
     @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
-    public static func processReceiptOcr(imageURL: URL) async throws -> ReceiptModelOcrResponse {
+    public static func processReceiptOcr(imageURL: URL, tokenProvider: TokenProvider? = nil) async throws -> ReceiptModelOcrResponse {
         let processURL = try await prepareImageForOCR(imageURL: imageURL)
         let shouldCleanup = processURL != imageURL
         
@@ -92,7 +100,7 @@ public class OCROperationsWrapper {
             }
         }
         
-        return try await OCROperationsAPI.processReceiptOcr(body: processURL)
+        return try await OCROperationsAPI.processReceiptOcr(body: processURL, tokenProvider: tokenProvider)
     }
     
     /// Process check OCR with completion handler (for non-async contexts)
