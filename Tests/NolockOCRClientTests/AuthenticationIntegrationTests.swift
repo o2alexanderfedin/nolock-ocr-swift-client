@@ -106,22 +106,17 @@ final class AuthenticationIntegrationTests: XCTestCase {
         // Given: A mock provider
         let provider = MockAuthenticationProvider(token: "initial-token")
 
-        // When: Refreshing token
-        let newToken = try await provider.refreshToken()
+        // When: Getting token
+        let token = try await provider.getToken()
 
-        // Then: Should return a new token
-        XCTAssertTrue(newToken.hasPrefix("refreshed-token-"))
-        XCTAssertNotEqual(newToken, "initial-token")
-
-        // And: Current token should be updated
-        let currentToken = try await provider.getCurrentToken()
-        XCTAssertEqual(currentToken, newToken)
+        // Then: Should return the configured token
+        XCTAssertEqual(token, "initial-token")
     }
 
     func testMockProviderInvalidToken() async throws {
         // Given: A mock provider with invalid token state
         let provider = MockAuthenticationProvider(token: "test-token")
-        provider.isTokenValidResponse = false
+        provider.isValid = false
 
         // When: Checking token validity
         let isValid = try await provider.isTokenValid()
@@ -133,7 +128,7 @@ final class AuthenticationIntegrationTests: XCTestCase {
     func testMockProviderErrorSimulation() async throws {
         // Given: A mock provider configured to throw error
         let provider = MockAuthenticationProvider(token: "test-token")
-        provider.shouldThrowError = true
+        provider.shouldThrow = true
 
         // When/Then: Getting token should throw
         do {
@@ -235,7 +230,7 @@ final class AuthenticationIntegrationTests: XCTestCase {
     func testTokenRefreshDuringRequest() async throws {
         // Given: A provider that will expire token
         let provider = MockAuthenticationProvider(token: "initial")
-        provider.isTokenValidResponse = false // Force refresh
+        provider.isValid = false // Force refresh
 
         NolockOCRClientAPI.configureAuthentication(
             provider: provider,
@@ -310,7 +305,7 @@ final class AuthenticationIntegrationTests: XCTestCase {
     func testErrorRecovery() async throws {
         // Given: A provider that fails then succeeds
         let provider = MockAuthenticationProvider(token: "recovery-token")
-        provider.shouldThrowError = true
+        provider.shouldThrow = true
 
         AuthenticationContext.configure(provider: provider)
 
@@ -323,7 +318,7 @@ final class AuthenticationIntegrationTests: XCTestCase {
         }
 
         // When: Disabling error and trying again
-        provider.shouldThrowError = false
+        provider.shouldThrow = false
         let token = try await provider.getCurrentToken()
 
         // Then: Should succeed

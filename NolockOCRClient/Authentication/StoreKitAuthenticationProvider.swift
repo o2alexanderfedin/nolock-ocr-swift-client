@@ -9,9 +9,6 @@ public final class StoreKitAuthenticationProvider: AuthenticationProvider {
 
     // MARK: - Properties
 
-    /// Configuration for the authentication provider
-    public let configuration: AuthenticationConfiguration
-
     /// Product identifiers to check for active subscriptions (optional)
     /// If nil, will check all subscriptions
     public let productIdentifiers: Set<String>?
@@ -19,34 +16,15 @@ public final class StoreKitAuthenticationProvider: AuthenticationProvider {
     // MARK: - Initialization
 
     /// Initializes the StoreKit authentication provider
-    /// - Parameters:
-    ///   - configuration: Authentication configuration
-    ///   - productIdentifiers: Optional set of product IDs to check. If nil, checks all subscriptions
-    public init(
-        configuration: AuthenticationConfiguration = .default,
-        productIdentifiers: Set<String>? = nil
-    ) {
-        self.configuration = configuration
+    /// - Parameter productIdentifiers: Optional set of product IDs to check. If nil, checks all subscriptions
+    public init(productIdentifiers: Set<String>? = nil) {
         self.productIdentifiers = productIdentifiers
     }
 
     // MARK: - AuthenticationProvider Protocol
 
-    public func getCurrentToken() async throws -> String {
+    public func getToken() async throws -> String {
         return try await fetchTokenFromStoreKit()
-    }
-
-    public func refreshToken() async throws -> String {
-        return try await fetchTokenFromStoreKit()
-    }
-
-    public func isTokenValid() async throws -> Bool {
-        do {
-            _ = try await fetchTokenFromStoreKit()
-            return true
-        } catch {
-            return false
-        }
     }
 
     // MARK: - Private Methods

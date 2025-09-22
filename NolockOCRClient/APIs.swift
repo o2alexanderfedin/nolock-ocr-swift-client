@@ -13,82 +13,15 @@ open class NolockOCRClientAPI {
     public static var customHeaders: [String: String] = [:]
     public static var credential: URLCredential?
 
-    // Automatically configure authentication for iOS/macOS apps
-    public static var requestBuilderFactory: RequestBuilderFactory = {
-        #if canImport(StoreKit)
-        if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
-            // Automatically use StoreKit authentication for iOS/macOS apps
-            let provider = StoreKitAuthenticationProvider()
-            let factory = AuthenticatedRequestBuilderFactory(
-                authProvider: provider,
-                configuration: .default
-            )
-            print("[NolockOCRClient] Automatic StoreKit authentication enabled - drop-in replacement active")
-            return factory
-        }
-        #endif
-        // Fallback to standard factory for older platforms
-        return URLSessionRequestBuilderFactory()
-    }()
+    public static var requestBuilderFactory: RequestBuilderFactory = URLSessionRequestBuilderFactory()
 
     public static var apiResponseQueue: DispatchQueue = .main
 
     // MARK: - Authentication Configuration
 
-    /// Configures the client to use StoreKit authentication
-    /// - Parameters:
-    ///   - productIdentifiers: Optional set of product IDs to check for active subscriptions
-    ///   - configuration: Authentication configuration settings
-    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
-    public static func configureStoreKitAuthentication(
-        productIdentifiers: Set<String>? = nil,
-        configuration: AuthenticationConfiguration = .default
-    ) {
-        let provider = StoreKitAuthenticationProvider(
-            configuration: configuration,
-            productIdentifiers: productIdentifiers
-        )
-
-        // Switch to authenticated request builder factory
-        // The factory will set the global context for builders
-        requestBuilderFactory = AuthenticatedRequestBuilderFactory(
-            authProvider: provider,
-            configuration: configuration
-        )
-    }
-
-    /// Configures the client to use mock authentication for testing
-    /// - Parameters:
-    ///   - mockToken: The mock JWT token to use
-    ///   - configuration: Authentication configuration settings
-    public static func configureMockAuthentication(
-        mockToken: String,
-        configuration: AuthenticationConfiguration = .default
-    ) {
-        let provider = MockAuthenticationProvider(token: mockToken)
-
-        // Switch to authenticated request builder factory
-        // The factory will set the global context for builders
-        requestBuilderFactory = AuthenticatedRequestBuilderFactory(
-            authProvider: provider,
-            configuration: configuration
-        )
-    }
-
-    /// Configures the client with a custom authentication provider
-    /// - Parameters:
-    ///   - provider: Custom authentication provider
-    ///   - configuration: Authentication configuration settings
-    public static func configureAuthentication(
-        provider: AuthenticationProvider,
-        configuration: AuthenticationConfiguration = .default
-    ) {
-        // Switch to authenticated request builder factory
-        // The factory will set the global context for builders
-        requestBuilderFactory = AuthenticatedRequestBuilderFactory(
-            authProvider: provider,
-            configuration: configuration
-        )
+    /// Configure authentication with a token provider
+    public static func configureAuthentication(provider: TokenProvider) {
+        requestBuilderFactory = AuthenticatedRequestBuilderFactory(tokenProvider: provider)
     }
 
 }
