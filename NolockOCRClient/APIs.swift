@@ -12,7 +12,7 @@ open class NolockOCRClientAPI {
     /// SDK Version
     public static let sdkVersion = "3.0.2"
 
-    public static var basePath = "http://localhost"
+    public static var basePath = "https://nolock-ocr-services-qbhx5.ondigitalocean.app"
     public static var customHeaders: [String: String] = [:]
     public static var credential: URLCredential?
 
