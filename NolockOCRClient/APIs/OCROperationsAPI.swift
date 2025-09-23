@@ -84,19 +84,15 @@ open class OCROperationsAPI {
     open class func processReceiptOcr(body: URL, tokenProvider: TokenProvider? = nil) async throws -> ReceiptModelOcrResponse {
         // Determine which provider to use
         let provider: TokenProvider
-        if let tokenProvider = tokenProvider {
-            provider = tokenProvider
+        #if canImport(StoreKit)
+        if #available(iOS 15.0, macOS 12.0, *) {
+            provider = StoreKitTokenProvider()
         } else {
-            #if canImport(StoreKit)
-            if #available(iOS 15.0, macOS 12.0, *) {
-                provider = StoreKitTokenProvider()
-            } else {
-                provider = MockTokenProvider()
-            }
-            #else
             provider = MockTokenProvider()
-            #endif
         }
+        #else
+        provider = MockTokenProvider()
+        #endif
 
         return try await processReceiptOcrWithRequestBuilder(body: body, tokenProvider: provider).execute().body
     }
