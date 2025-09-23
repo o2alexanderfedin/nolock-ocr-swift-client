@@ -94,7 +94,9 @@ open class OCROperationsAPI {
         provider = MockTokenProvider()
         #endif
 
-        return try await processReceiptOcrWithRequestBuilder(body: body, tokenProvider: provider).execute().body
+        let requestBuilder: RequestBuilder<ReceiptModelOcrResponse> = processReceiptOcrWithRequestBuilder(body: body, tokenProvider: provider)
+        let result: Response<ReceiptModelOcrResponse> = try await requestBuilder.execute()
+        return result.body
     }
 
     /**
