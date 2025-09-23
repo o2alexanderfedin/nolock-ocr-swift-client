@@ -110,8 +110,6 @@ open class OCROperationsAPI {
         let localVariableURLString = NolockOCRClientAPI.basePath + localVariablePath
         let localVariableParameters = ["body": body]
 
-        let localVariableUrlComponents = URLComponents(string: localVariableURLString)
-
         let localVariableNillableHeaders: [String: Any?] = [
             "Content-Type": "application/octet-stream",
         ]
@@ -122,7 +120,7 @@ open class OCROperationsAPI {
         if let provider = tokenProvider {
             return AuthenticatedDecodableRequestBuilder<ReceiptModelOcrResponse>(
                 method: "POST",
-                URLString: (localVariableUrlComponents?.string ?? localVariableURLString),
+                URLString: localVariableURLString,
                 parameters: localVariableParameters,
                 headers: localVariableHeaderParameters,
                 tokenProvider: provider
@@ -130,7 +128,7 @@ open class OCROperationsAPI {
         } else {
             // Use default factory
             let localVariableRequestBuilder: RequestBuilder<ReceiptModelOcrResponse>.Type = NolockOCRClientAPI.requestBuilderFactory.getBuilder()
-            return localVariableRequestBuilder.init(method: "POST", URLString: (localVariableUrlComponents?.string ?? localVariableURLString), parameters: localVariableParameters, headers: localVariableHeaderParameters)
+            return localVariableRequestBuilder.init(method: "POST", URLString: localVariableURLString, parameters: localVariableParameters, headers: localVariableHeaderParameters)
         }
     }
 }
