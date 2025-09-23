@@ -53,7 +53,6 @@ public class OCROperationsWrapper {
                 try? FileManager.default.removeItem(at: processURL)
             }
         }
-        
         return try await OCROperationsAPI.processCheckOcr(body: processURL)
     }
     
