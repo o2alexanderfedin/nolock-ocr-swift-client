@@ -9,6 +9,9 @@ import Foundation
 import FoundationNetworking
 #endif
 open class NolockOCRClientAPI {
+    /// SDK Version
+    public static let sdkVersion = "3.0.2"
+
     public static var basePath = "http://localhost"
     public static var customHeaders: [String: String] = [:]
     public static var credential: URLCredential?
