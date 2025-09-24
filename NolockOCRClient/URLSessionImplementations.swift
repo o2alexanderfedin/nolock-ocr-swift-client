@@ -187,7 +187,14 @@ open class URLSessionRequestBuilder<T>: RequestBuilder<T> {
     fileprivate func processRequestResponse(urlRequest: URLRequest, data: Data?, response: URLResponse?, error: Error?, completion: @escaping (_ result: Swift.Result<Response<T>, ErrorResponse>) -> Void) {
 
         if let error = error {
-            completion(.failure(ErrorResponse.error(-1, data, response, error)))
+            // If we have an HTTP response, use its status code instead of -1
+            let statusCode: Int
+            if let httpResponse = response as? HTTPURLResponse {
+                statusCode = httpResponse.statusCode
+            } else {
+                statusCode = -1
+            }
+            completion(.failure(ErrorResponse.error(statusCode, data, response, error)))
             return
         }
 
@@ -301,7 +308,14 @@ open class URLSessionDecodableRequestBuilder<T: Decodable>: URLSessionRequestBui
     override fileprivate func processRequestResponse(urlRequest: URLRequest, data: Data?, response: URLResponse?, error: Error?, completion: @escaping (_ result: Swift.Result<Response<T>, ErrorResponse>) -> Void) {
 
         if let error = error {
-            completion(.failure(ErrorResponse.error(-1, data, response, error)))
+            // If we have an HTTP response, use its status code instead of -1
+            let statusCode: Int
+            if let httpResponse = response as? HTTPURLResponse {
+                statusCode = httpResponse.statusCode
+            } else {
+                statusCode = -1
+            }
+            completion(.failure(ErrorResponse.error(statusCode, data, response, error)))
             return
         }
 
