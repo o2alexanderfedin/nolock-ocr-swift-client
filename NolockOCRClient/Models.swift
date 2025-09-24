@@ -66,7 +66,38 @@ extension NullEncodable: Codable where Wrapped: Codable {
 }
 
 public enum ErrorResponse: Error {
-    case error(Int, Data?, URLResponse?, Error)
+    case error(Int, Data?, URLResponse?, Error?)
+
+    public var statusCode: Int {
+        switch self {
+        case .error(let code, _, _, _):
+            return code
+        }
+    }
+
+    public var message: String {
+        switch self {
+        case .error(let code, _, let response, _):
+            switch code {
+            case 401:
+                return "Authentication failed. Please check your subscription."
+            case 403:
+                return "Access denied. You don't have permission to use this service."
+            case 404:
+                return "Service not found. Please check the configuration."
+            case 500...599:
+                return "Server error. Please try again later."
+            case -1 where (response as? HTTPURLResponse)?.statusCode == 401:
+                return "Authentication failed. Please check your subscription."
+            default:
+                return "Request failed with error code \(code)"
+            }
+        }
+    }
+}
+
+extension ErrorResponse: LocalizedError {
+    public var errorDescription: String? { message }
 }
 
 public enum DownloadException: Error {

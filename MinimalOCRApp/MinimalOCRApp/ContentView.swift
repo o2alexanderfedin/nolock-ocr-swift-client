@@ -139,7 +139,7 @@ struct ContentView: View {
             }
         } catch {
             // Extract detailed error message
-            errorMessage = extractErrorMessage(from: error)
+            errorMessage = error.localizedDescription
         }
 
         isProcessing = false
@@ -240,45 +240,7 @@ struct ContentView: View {
     }
 
     func extractErrorMessage(from error: Error) -> String {
-        // Check if it's an ErrorResponse
-        if case let ErrorResponse.error(statusCode, data, _, underlyingError) = error {
-            switch statusCode {
-            case 401:
-                return "Authentication failed. Please check your subscription."
-            case 403:
-                return "Access denied. You don't have permission to use this service."
-            case 404:
-                return "Service not found. Please check the configuration."
-            case 500...599:
-                return "Server error (\(statusCode)). Please try again later."
-            default:
-                // Try to parse server error message
-                if let data = data,
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let errorMessage = json["error"] as? String {
-                    return "Server Error (\(statusCode)): \(errorMessage)"
-                }
-
-                // Check for network errors
-                if let nsError = underlyingError as NSError? {
-                    if nsError.domain == NSURLErrorDomain {
-                        switch nsError.code {
-                        case NSURLErrorNotConnectedToInternet:
-                            return "No internet connection. Please check your network settings."
-                        case NSURLErrorTimedOut:
-                            return "Request timed out. Please try again."
-                        case NSURLErrorNetworkConnectionLost:
-                            return "Network connection lost. Please try again."
-                        default:
-                            return "Network error: \(nsError.localizedDescription)"
-                        }
-                    }
-                    return "Error: \(nsError.localizedDescription)"
-                }
-
-                return "HTTP Error \(statusCode)"
-            }
-        }
+        // The SDK now provides user-friendly messages directly
         return error.localizedDescription
     }
 }
