@@ -17,6 +17,6 @@ public struct StoreKitTokenProvider: TokenProvider {
         }
         #endif
 
-        throw NSError(domain: "NoToken", code: 0)
+        return UUID.zeroString
     }
 }
