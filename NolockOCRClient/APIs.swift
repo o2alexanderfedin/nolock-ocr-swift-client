@@ -10,7 +10,7 @@ import FoundationNetworking
 #endif
 open class NolockOCRClientAPI {
     /// SDK Version
-    public static let sdkVersion = "3.0.9"
+    public static let sdkVersion = "3.1.0"
 
     public static var basePath = "https://nolock-ocr-services-qbhx5.ondigitalocean.app"
     public static var customHeaders: [String: String] = [:]
